@@ -1,0 +1,4 @@
+.DS_Store
+log.txt
+*.log
+/wp-content/uploads/cp_orders/

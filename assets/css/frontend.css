@@ -1,0 +1,15 @@
+.cp-personalization-form {
+    background: #f9f9f9;
+    padding: 20px;
+    border: 1px solid #eee;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.cp-personalization-form h3 {
+    margin-top: 0;
+}
+
+#cp-preview-container iframe {
+    border: none;
+}
