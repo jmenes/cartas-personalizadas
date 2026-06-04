@@ -151,14 +151,18 @@ jQuery(document).ready(function ($) {
         var tIndex = $(this).data('tindex');
         var mIdx = $(this).val();
 
-        // Hide all model fields and disable their inputs to avoid validation errors
-        $block.find('.cp-model-fields').hide();
-        $block.find('.cp-model-fields .cp-dynamic-field').prop('disabled', true);
+        // Find all inputs across all models in this block
+        var $allModelFields = $block.find('.cp-model-fields');
+        var $allInputs = $allModelFields.find(':input');
 
-        // Show active model fields and enable inputs
+        // Hide all, disable them, and remove required attribute to prevent browser validation errors
+        $allModelFields.hide();
+        $allInputs.prop('disabled', true).removeAttr('required');
+
+        // Show active model fields, enable inputs, and restore required attribute
         var $activeFields = $block.find('.cp-model-fields-' + tIndex + '-' + mIdx);
         $activeFields.show();
-        $activeFields.find('.cp-dynamic-field').prop('disabled', false);
+        $activeFields.find(':input').prop('disabled', false).attr('required', 'required');
 
         // Update preview automatically if we are on the form page and the PDF has already been generated once
         var $container = $('#cp-preview-container-' + tIndex);
@@ -399,6 +403,9 @@ jQuery(document).ready(function ($) {
 
     // Run on load
     linkInputsToCartForm();
+
+    // Initialize model selector states on load to ensure only the active model fields are enabled and required
+    $('.cp-model-selector:checked, input[type="hidden"].cp-model-selector').trigger('change');
 
     // Fallback: Dynamically inject inputs on cart form submission if they are outside the form
     $(document).on('submit', 'form.cart', function () {
