@@ -287,7 +287,8 @@
 /* When zoomed, we override the absolute position and size so the canvas can scroll */
 .cp-preview-container.cp-zoomed canvas {
     position: relative;
-    height: auto;
+    height: auto !important;
+    max-width: none !important;
 }
 
 /* Active PDF styles (fade out placeholders, fade in canvas) */

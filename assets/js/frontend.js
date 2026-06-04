@@ -265,7 +265,7 @@ jQuery(document).ready(function ($) {
         if ($(this).hasClass('cp-zoom-in')) {
             cpZoomLevels[index] = Math.min(cpZoomLevels[index] + 0.25, 2.5);
         } else if ($(this).hasClass('cp-zoom-out')) {
-            cpZoomLevels[index] = Math.max(cpZoomLevels[index] - 0.25, 0.75);
+            cpZoomLevels[index] = Math.max(cpZoomLevels[index] - 0.25, 1.0);
         } else if ($(this).hasClass('cp-zoom-reset')) {
             cpZoomLevels[index] = 1.0;
         }
