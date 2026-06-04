@@ -294,6 +294,9 @@
 .cp-preview-container.cp-preview-active {
     border-color: #e5e7eb;
     cursor: default;
+    padding: 0 !important;
+    display: block !important;
+    min-height: auto !important;
 }
 
 .cp-preview-container.cp-preview-active canvas {
