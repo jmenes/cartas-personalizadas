@@ -96,9 +96,24 @@ class CP_PDF {
 			$delivery_format = isset( $data['delivery_format'] ) ? $data['delivery_format'] : 'physical';
 			$background_image = get_post_meta( $template_id, '_cp_background_image', true );
 			if ( $background_image && ( $is_preview || $delivery_format === 'digital' ) ) {
-				$local_bg = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $background_image );
+				$local_bg = '';
 				
-				if ( file_exists( $local_bg ) ) {
+				// Try to resolve the local system path if it is a local image under wp-content
+				$wp_content_pos = strpos( $background_image, '/wp-content/' );
+				if ( $wp_content_pos !== false ) {
+					$relative_path = substr( $background_image, $wp_content_pos );
+					if ( defined( 'WP_CONTENT_DIR' ) ) {
+						$local_bg = WP_CONTENT_DIR . substr( $relative_path, 11 ); // remove '/wp-content' (11 chars)
+					} else {
+						$local_bg = ABSPATH . ltrim( $relative_path, '/' );
+					}
+				}
+				
+				if ( empty( $local_bg ) || ! file_exists( $local_bg ) ) {
+					$local_bg = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $background_image );
+				}
+				
+				if ( ! empty( $local_bg ) && file_exists( $local_bg ) ) {
 					$pdf->Image( $local_bg, 0, 0, $dim_w, $dim_h );
 				} elseif ( ini_get('allow_url_fopen') ) {
 					$pdf->Image( $background_image, 0, 0, $dim_w, $dim_h );

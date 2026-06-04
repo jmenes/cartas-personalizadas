@@ -390,6 +390,10 @@ class CP_Frontend {
 	}
 
 	public function ajax_generate_preview() {
+		if ( session_id() ) {
+			session_write_close();
+		}
+
 		check_ajax_referer( 'cp_preview_nonce', 'nonce' );
 
 		$blocks_data = isset( $_POST['blocks'] ) ? $_POST['blocks'] : array();
