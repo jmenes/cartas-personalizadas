@@ -76,7 +76,11 @@ jQuery(document).ready(function ($) {
             }
         }
 
-        $container.html('Cargando previsualización...').show();
+        var $overlayBtn = $container.find('.cp-preview-overlay-btn');
+        var originalOverlayText = $overlayBtn.length ? $overlayBtn.text() : '';
+        if ($overlayBtn.length) {
+            $overlayBtn.text('Cargando...').prop('disabled', true);
+        }
 
         $.ajax({
             url: cp_ajax.url,
@@ -92,6 +96,9 @@ jQuery(document).ready(function ($) {
             },
             success: function (response) {
                 $btn.text(originalText).prop('disabled', false);
+                if ($overlayBtn.length) {
+                    $overlayBtn.text(originalOverlayText).prop('disabled', false);
+                }
                 if (response.success) {
                     if (response.data.type === 'pdf') {
                         // Render PDF using PDF.js
@@ -99,15 +106,18 @@ jQuery(document).ready(function ($) {
                     } else {
                         // Fallback for image
                         var html = '<img src="' + response.data.preview_url + '" style="width:100%; border:1px solid #ccc;">';
-                        $container.html(html);
+                        $container.html(html).addClass('cp-preview-active');
                     }
                 } else {
-                    $container.html('Error: ' + response.data.message);
+                    $container.html('<div style="color: #ef4444; padding: 20px; font-weight: 500;">Error: ' + response.data.message + '</div>').addClass('cp-preview-active');
                 }
             },
             error: function () {
                 $btn.text(originalText).prop('disabled', false);
-                $container.html('Error de conexión.');
+                if ($overlayBtn.length) {
+                    $overlayBtn.text(originalOverlayText).prop('disabled', false);
+                }
+                $container.html('<div style="color: #ef4444; padding: 20px; font-weight: 500;">Error de conexión.</div>').addClass('cp-preview-active');
             }
         });
     }
@@ -180,10 +190,12 @@ jQuery(document).ready(function ($) {
                 var canvasId = 'cp-pdf-canvas-' + index;
                 var canvas = document.createElement('canvas');
                 canvas.id = canvasId;
-                canvas.style.width = '100%';
-                canvas.style.border = '1px solid #ccc';
 
-                $container.html(canvas).addClass('cp-preview-active');
+                // Remove any old canvas elements first
+                $container.find('canvas').remove();
+                
+                // Append the canvas absolutely inside the container
+                $container.append(canvas);
 
                 var context = canvas.getContext('2d');
                 canvas.height = viewport.height;
@@ -197,6 +209,8 @@ jQuery(document).ready(function ($) {
                 var renderTask = page.render(renderContext);
                 renderTask.promise.then(function () {
                     console.log('Page rendered');
+                    // Add the active class to trigger smooth CSS transition
+                    $container.addClass('cp-preview-active');
                 });
             });
         }, function (reason) {

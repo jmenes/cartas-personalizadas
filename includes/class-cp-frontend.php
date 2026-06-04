@@ -264,12 +264,57 @@ class CP_Frontend {
 			echo '</div>'; // close cp-template-form-side
 			
 			// Right side: Preview
-			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" data-index="' . $t_index . '">';
-			echo '<div class="cp-preview-skeleton-card">';
-			echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="cp-preview-skeleton-svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-			echo '<span class="cp-preview-skeleton-title">' . esc_html( $template_title ) . '</span>';
-			echo '</div>';
+			$background_image = get_post_meta( $template_id, '_cp_background_image', true );
+			
+			// Resolve aspect ratio for A4, A5, Letter based on template settings
+			$page_size = get_post_meta( $template_id, '_cp_page_size', true );
+			if ( empty( $page_size ) ) {
+				$page_size = 'A4';
+			}
+			$page_orientation = get_post_meta( $template_id, '_cp_page_orientation', true );
+			if ( empty( $page_orientation ) ) {
+				$page_orientation = 'P';
+			}
+			
+			$w_ratio = 210;
+			$h_ratio = 297;
+			if ( $page_size === 'A5' ) {
+				$w_ratio = 148;
+				$h_ratio = 210;
+			} elseif ( $page_size === 'Letter' ) {
+				$w_ratio = 216;
+				$h_ratio = 279;
+			}
+			
+			if ( $page_orientation === 'L' ) {
+				$temp = $w_ratio;
+				$w_ratio = $h_ratio;
+				$h_ratio = $temp;
+			}
+			$aspect_ratio_style = "aspect-ratio: {$w_ratio} / {$h_ratio};";
+
+			// Get WordPress 'large' size of background image if available for web optimization
+			$preview_bg_url = $background_image;
+			if ( $background_image ) {
+				$attachment_id = attachment_url_to_postid( $background_image );
+				if ( $attachment_id ) {
+					$image_attributes = wp_get_attachment_image_src( $attachment_id, 'large' );
+					if ( $image_attributes && isset( $image_attributes[0] ) ) {
+						$preview_bg_url = $image_attributes[0];
+					}
+				}
+			}
+
+			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" data-index="' . $t_index . '" style="' . esc_attr( $aspect_ratio_style ) . '">';
+			if ( $preview_bg_url ) {
+				echo '<div class="cp-preview-bg-image" style="background-image: url(\'' . esc_url( $preview_bg_url ) . '\');"></div>';
+				echo '<div class="cp-preview-watermark-overlay"></div>';
+				echo '<div class="cp-preview-watermark-text">' . __( 'MUESTRA', 'cartas-personalizadas' ) . '</div>';
+				echo '<div class="cp-preview-protection-layer"></div>';
+			}
+			echo '<div class="cp-preview-action-overlay">';
 			echo '<button type="button" class="button cp-preview-overlay-btn">' . __( 'Ver Previsualización', 'cartas-personalizadas' ) . '</button>';
+			echo '</div>';
 			echo '</div>';
 			
 			echo '</div>'; // close cp-template-layout-grid

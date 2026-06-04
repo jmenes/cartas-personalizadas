@@ -159,101 +159,147 @@
    ESTILOS DE CONTENEDOR PREVIOS Y PLACEHOLDERS
    ========================================== */
 .cp-preview-container {
-    margin-top: 20px;
-    border: 1px solid #e5e7eb;
-    padding: 25px 15px;
-    text-align: center;
-    background: #f9fafb;
-    min-height: 250px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    box-sizing: border-box;
-    transition: all 0.25s ease;
-    cursor: pointer;
-}
-
-.cp-preview-skeleton-card {
+    position: relative;
     width: 100%;
-    max-width: 140px;
-    height: 180px;
-    border: 2px dashed #d1d5db;
+    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    background: #ffffff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 15px;
+    background: #f9fafb;
+    overflow: hidden;
+    cursor: pointer;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    margin-bottom: 20px;
     transition: all 0.3s ease;
     box-sizing: border-box;
 }
 
-.cp-preview-skeleton-svg {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 12px;
-    transition: stroke 0.3s ease;
+.cp-preview-bg-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: 100% 100%; /* Sizing matches FPDF exact scaling */
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: transform 0.4s ease, filter 0.3s ease, opacity 0.4s ease;
+    z-index: 1;
+    opacity: 1;
 }
 
-.cp-preview-skeleton-title {
-    font-size: 0.8em;
-    font-weight: 700;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: color 0.3s ease;
-    display: block;
+.cp-preview-watermark-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(-45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1) 40px, rgba(0,0,0,0.02) 40px, rgba(0,0,0,0.02) 80px);
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity 0.3s ease;
+}
+
+.cp-preview-watermark-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 3.5em;
+    font-weight: 900;
+    color: rgba(0,0,0,0.05);
+    pointer-events: none;
+    user-select: none;
+    z-index: 3;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+}
+
+.cp-preview-protection-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 4;
+}
+
+.cp-preview-action-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.15);
+    z-index: 5;
+    transition: all 0.3s ease, opacity 0.4s ease;
 }
 
 .cp-preview-overlay-btn {
-    background-color: #2271b1 !important;
+    background-color: rgba(34, 113, 177, 0.9) !important;
     color: #ffffff !important;
     border: none !important;
-    padding: 8px 16px !important;
-    border-radius: 6px !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 4px rgba(34, 113, 177, 0.15) !important;
-    transition: all 0.2s ease !important;
+    padding: 12px 24px !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
+    transition: all 0.25s ease !important;
     cursor: pointer;
-    font-size: 0.95em !important;
+    font-size: 1.05em !important;
 }
 
 /* Hover effects (only when preview is not active yet) */
 .cp-preview-container:not(.cp-preview-active):hover {
     border-color: #2271b1;
-    background: #f0f7fc;
+    box-shadow: 0 10px 15px -3px rgba(34, 113, 177, 0.15), 0 4px 6px -2px rgba(34, 113, 177, 0.05);
 }
 
-.cp-preview-container:not(.cp-preview-active):hover .cp-preview-skeleton-card {
-    transform: translateY(-4px);
-    border-color: #2271b1;
-    box-shadow: 0 10px 15px -3px rgba(34, 113, 177, 0.1), 0 4px 6px -2px rgba(34, 113, 177, 0.05);
+.cp-preview-container:not(.cp-preview-active):hover .cp-preview-bg-image {
+    transform: scale(1.02);
+    filter: brightness(0.95);
 }
 
-.cp-preview-container:not(.cp-preview-active):hover .cp-preview-skeleton-svg {
-    stroke: #2271b1;
-}
-
-.cp-preview-container:not(.cp-preview-active):hover .cp-preview-skeleton-title {
-    color: #2271b1;
+.cp-preview-container:not(.cp-preview-active):hover .cp-preview-action-overlay {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .cp-preview-container:not(.cp-preview-active):hover .cp-preview-overlay-btn {
-    background-color: #135e96 !important;
-    box-shadow: 0 4px 6px rgba(19, 94, 150, 0.25) !important;
+    background-color: #2271b1 !important;
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(34, 113, 177, 0.35) !important;
 }
 
-/* Active PDF styles (reset container spacing and borders) */
+/* Canvas styling and positioning inside aspect-ratio container */
+.cp-preview-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 6; /* Rendered on top of background and overlays */
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Active PDF styles (fade out placeholders, fade in canvas) */
 .cp-preview-container.cp-preview-active {
-    border: none;
-    padding: 0;
-    background: transparent;
+    border-color: #e5e7eb;
     cursor: default;
-    min-height: auto;
+}
+
+.cp-preview-container.cp-preview-active canvas {
+    opacity: 1;
+}
+
+.cp-preview-container.cp-preview-active .cp-preview-bg-image,
+.cp-preview-container.cp-preview-active .cp-preview-watermark-overlay,
+.cp-preview-container.cp-preview-active .cp-preview-watermark-text,
+.cp-preview-container.cp-preview-active .cp-preview-protection-layer,
+.cp-preview-container.cp-preview-active .cp-preview-action-overlay {
+    opacity: 0;
+    pointer-events: none;
 }
 
