@@ -21,6 +21,18 @@ class CP_Admin {
 			'description'   => __( 'Marcar si este producto es una carta personalizada que requiere formulario.', 'cartas-personalizadas' ),
 		) );
 
+		// Select: Formato de Entrega
+		woocommerce_wp_select( array(
+			'id'            => '_cp_delivery_format',
+			'label'         => __( 'Formato de Entrega', 'cartas-personalizadas' ),
+			'options'       => array(
+				'physical' => __( 'Físico (Impresión - PDF sin imagen de fondo)', 'cartas-personalizadas' ),
+				'digital'  => __( 'Digital (Descarga - PDF con imagen de fondo completa)', 'cartas-personalizadas' ),
+			),
+			'description'   => __( 'Si seleccionas Digital, recuerda marcar la casilla "Virtual" en los ajustes superiores de WooCommerce para desactivar el envío.', 'cartas-personalizadas' ),
+			'desc_tip'      => true,
+		) );
+
 		// Select: Plantilla PDF (Multiple)
 		$templates = get_posts( array(
 			'post_type'      => 'cp_template',
@@ -57,6 +69,10 @@ class CP_Admin {
 		// Save Checkbox
 		$is_letter = isset( $_POST['_cp_is_letter'] ) ? 'yes' : 'no';
 		update_post_meta( $post_id, '_cp_is_letter', $is_letter );
+
+		// Save Delivery Format
+		$delivery_format = isset( $_POST['_cp_delivery_format'] ) ? sanitize_text_field( $_POST['_cp_delivery_format'] ) : 'physical';
+		update_post_meta( $post_id, '_cp_delivery_format', $delivery_format );
 
 		// Save Templates Array
 		if ( isset( $_POST['_cp_templates'] ) && is_array( $_POST['_cp_templates'] ) ) {

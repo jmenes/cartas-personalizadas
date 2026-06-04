@@ -92,9 +92,10 @@ class CP_PDF {
 		if ( $template_id ) {
 			$upload_dir = wp_upload_dir();
 
-			// Background Image
+			// Background Image: Only loaded for preview or for digital delivery
+			$delivery_format = isset( $data['delivery_format'] ) ? $data['delivery_format'] : 'physical';
 			$background_image = get_post_meta( $template_id, '_cp_background_image', true );
-			if ( $background_image ) {
+			if ( $background_image && ( $is_preview || $delivery_format === 'digital' ) ) {
 				$local_bg = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $background_image );
 				
 				if ( file_exists( $local_bg ) ) {

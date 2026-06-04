@@ -295,6 +295,11 @@ class CP_Frontend {
 				$templates = array( $old );
 			}
 			
+			$delivery_format = get_post_meta( $product_id, '_cp_delivery_format', true );
+			if ( empty( $delivery_format ) ) {
+				$delivery_format = 'physical';
+			}
+			
 			foreach ( $_POST['cp_data'] as $index => $data ) {
 				$template_id = isset( $templates[$index] ) ? $templates[$index] : 0;
 				$m_idx = isset($data['model_id']) ? intval($data['model_id']) : 0;
@@ -331,12 +336,13 @@ class CP_Frontend {
 				}
 
 				$sanitized_data[] = array(
-					'blocks'        => $sanitized_blocks,
-					'variables'     => $sanitized_variables,
-					'template_id'   => $template_id,
-					'template_name' => get_the_title( $template_id ),
-					'model_id'      => $m_idx,
-					'model_name'    => $model_name
+					'blocks'          => $sanitized_blocks,
+					'variables'       => $sanitized_variables,
+					'template_id'     => $template_id,
+					'template_name'   => get_the_title( $template_id ),
+					'model_id'        => $m_idx,
+					'model_name'      => $model_name,
+					'delivery_format' => $delivery_format
 				);
 			}
 			$cart_item_data['cp_personalizations'] = $sanitized_data;
@@ -351,6 +357,14 @@ class CP_Frontend {
 					'key'     => sprintf( __( 'Plantilla: %s', 'cartas-personalizadas' ), $data['template_name'] ),
 					'value'   => !empty($data['model_name']) ? sprintf( __( 'Modelo: %s', 'cartas-personalizadas' ), $data['model_name'] ) : __( 'Personalizada ✔', 'cartas-personalizadas' ),
 				);
+				
+				if ( isset( $data['delivery_format'] ) ) {
+					$format_label = ( $data['delivery_format'] === 'digital' ) ? __( 'Digital (Descarga PDF)', 'cartas-personalizadas' ) : __( 'Físico (Envío Postal)', 'cartas-personalizadas' );
+					$item_data[] = array(
+						'key'   => __( 'Formato', 'cartas-personalizadas' ),
+						'value' => $format_label,
+					);
+				}
 			}
 		}
 		return $item_data;
