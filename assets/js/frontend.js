@@ -48,13 +48,14 @@ jQuery(document).ready(function ($) {
         var originalText = $btn.text();
         $btn.text('Generando...').prop('disabled', true);
 
-        // We use the central container for preview, but we could also append one inside the block.
-        // For now, keeping the central shortcode container.
-        var $container = $('#cp-preview-container');
+        // Try to find the template-specific container, else fallback to the central container
+        var $container = $('#cp-preview-container-' + index);
         if (!$container.length) {
-            // If shortcode not used, we can dynamically append a container
-            $container = $('<div id="cp-preview-container" style="margin-top: 20px; border: 2px dashed #ccc; padding: 20px; text-align: center; background: #f9f9f9; min-height: 200px; display: flex; align-items: center; justify-content: center;"></div>');
-            $('.cp-personalization-form').after($container);
+            $container = $('#cp-preview-container');
+            if (!$container.length) {
+                $container = $('<div id="cp-preview-container" style="margin-top: 20px; border: 2px dashed #ccc; padding: 20px; text-align: center; background: #f9f9f9; min-height: 200px; display: flex; align-items: center; justify-content: center;"></div>');
+                $('.cp-personalization-form').after($container);
+            }
         }
 
         $container.html('Cargando previsualización...').show();
@@ -76,7 +77,7 @@ jQuery(document).ready(function ($) {
                 if (response.success) {
                     if (response.data.type === 'pdf') {
                         // Render PDF using PDF.js
-                        renderPDF(response.data.preview_url, $container);
+                        renderPDF(response.data.preview_url, $container, index);
                     } else {
                         // Fallback for image
                         var html = '<img src="' + response.data.preview_url + '" style="width:100%; border:1px solid #ccc;">';
@@ -118,15 +119,15 @@ jQuery(document).ready(function ($) {
         generatePreview(tIndex);
     });
 
-    // Trigger on page load if there is at least one form
-    if ($('.cp-template-block').length > 0) {
-        var firstBlockIndex = $('.cp-template-block').first().data('index');
-        if (firstBlockIndex !== undefined) {
-            generatePreview(firstBlockIndex);
+    // Trigger on page load for all active template blocks in parallel
+    $('.cp-template-block').each(function () {
+        var index = $(this).data('index');
+        if (index !== undefined) {
+            generatePreview(index);
         }
-    }
+    });
 
-    function renderPDF(url, $container) {
+    function renderPDF(url, $container, index) {
         // Ensure pdfjsLib is available
         if (typeof pdfjsLib === 'undefined') {
             $container.html('Error: PDF library not loaded.');
@@ -143,7 +144,7 @@ jQuery(document).ready(function ($) {
                 var viewport = page.getViewport({ scale: scale });
 
                 // Prepare canvas using PDF page dimensions
-                var canvasId = 'cp-pdf-canvas';
+                var canvasId = 'cp-pdf-canvas-' + index;
                 var canvas = document.createElement('canvas');
                 canvas.id = canvasId;
                 canvas.style.width = '100%';

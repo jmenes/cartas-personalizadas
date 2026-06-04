@@ -256,6 +256,10 @@ class CP_Frontend {
 
 			echo '<button type="button" class="button cp-preview-btn" data-index="' . $t_index . '">' . sprintf( __( 'Previsualizar %s', 'cartas-personalizadas' ), $template_title ) . '</button>';
 			
+			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" style="margin-top: 15px; border: 2px dashed #ccc; padding: 15px; text-align: center; background: #fafafa; min-height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">';
+			echo '<span style="color: #999;">' . sprintf( __( 'La previsualización de %s aparecerá aquí.', 'cartas-personalizadas' ), esc_html( $template_title ) ) . '</span>';
+			echo '</div>';
+			
 			echo '</div>'; // close cp-template-block
 		}
 		
