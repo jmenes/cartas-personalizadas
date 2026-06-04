@@ -235,11 +235,20 @@ class CP_PDF {
 					$pos_type = isset( $block['position_type'] ) ? $block['position_type'] : 'sequential';
 					$w_val = isset( $block['width'] ) && is_numeric( $block['width'] ) && $block['width'] > 0 ? floatval( $block['width'] ) : $content_width;
 					
+					// Override font size if set on the block level
+					$block_font_size = isset( $block['font_size'] ) && is_numeric( $block['font_size'] ) && floatval( $block['font_size'] ) > 0 ? floatval( $block['font_size'] ) : $font_size;
+					$block_line_height = $line_height;
+					if ( $font_size > 0 && $block_font_size !== $font_size ) {
+						$block_line_height = ( $block_font_size / $font_size ) * $line_height;
+					}
+					
+					$pdf->SetFont( 'LibreBaskerville', '', $block_font_size );
+					
 					if ( $pos_type === 'absolute' ) {
 						$p_x = isset( $block['pos_x'] ) && is_numeric( $block['pos_x'] ) ? floatval( $block['pos_x'] ) : $current_x;
 						$p_y = isset( $block['pos_y'] ) && is_numeric( $block['pos_y'] ) ? floatval( $block['pos_y'] ) : $current_y;
 						$pdf->SetXY( $p_x, $p_y );
-						$pdf->MultiCell( $w_val, $line_height, utf8_decode( $text_to_print ), 0, $text_align );
+						$pdf->MultiCell( $w_val, $block_line_height, utf8_decode( $text_to_print ), 0, $text_align );
 						// When absolute positioning, we might optionally not advance $current_y
 						// but usually it's safer to not advance it or advance it relatively.
 						if ( $p_y >= $current_y ) {
@@ -248,7 +257,7 @@ class CP_PDF {
 						$current_x = $p_x;
 					} else {
 						$pdf->SetXY( $current_x, $current_y );
-						$pdf->MultiCell( $w_val, $line_height, utf8_decode( $text_to_print ), 0, $text_align );
+						$pdf->MultiCell( $w_val, $block_line_height, utf8_decode( $text_to_print ), 0, $text_align );
 						$current_y = $pdf->GetY() + $separation; // Update for next blocks
 					}
 				}

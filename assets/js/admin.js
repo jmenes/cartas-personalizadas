@@ -128,6 +128,7 @@ jQuery(document).ready(function ($) {
                 pos_x: '',
                 pos_y: '',
                 width: '',
+                font_size: '',
                 label: '',
                 desc: '',
                 field_type: 'text',
@@ -309,7 +310,8 @@ jQuery(document).ready(function ($) {
                 position_type: position_type,
                 pos_x: $block.find('.cp-b-pos-x').val(),
                 pos_y: $block.find('.cp-b-pos-y').val(),
-                width: $block.find('.cp-b-width').val()
+                width: $block.find('.cp-b-width').val(),
+                font_size: $block.find('.cp-b-font-size').val()
             };
             if (type === 'input') {
                 blockData.label = $block.find('.cp-b-label').val();
@@ -353,6 +355,7 @@ jQuery(document).ready(function ($) {
             $block.find('.cp-b-pos-x').val(data.pos_x || '');
             $block.find('.cp-b-pos-y').val(data.pos_y || '');
             $block.find('.cp-b-width').val(data.width || '');
+            $block.find('.cp-b-font-size').val(data.font_size || '');
 
             $block.find('.cp-b-label').val(data.label || '');
             $block.find('.cp-b-desc').val(data.desc || '');

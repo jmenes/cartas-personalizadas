@@ -335,6 +335,11 @@ class CP_Templates {
 							<input type="number" step="0.1" class="cp-b-width" placeholder="Por defecto">
 							<span class="description" style="margin-left:5px;">0 o vacío para que ocupe todo el ancho disponible.</span>
 						</div>
+						<div class="cp-row">
+							<label>Tamaño de Letra (pt)</label>
+							<input type="number" step="0.5" class="cp-b-font-size" placeholder="Por defecto de plantilla">
+							<span class="description" style="margin-left:5px;">Vacío para usar el definido en el modelo.</span>
+						</div>
 					</div>
 				</div> <!-- End Tab Panels -->
 				</div> <!-- End Block Body -->
