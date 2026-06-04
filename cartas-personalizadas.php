@@ -1,11 +1,14 @@
 <?php
 /**
- * Plugin Name: Cartas Personalizadas
- * Plugin URI:  https://menes.studio
- * Description: Plugin para vender cartas personalizadas con WooCommerce.
- * Version:     1.0.0
- * Author:      menes.studio
- * Text Domain: cartas-personalizadas
+ * Plugin Name:       Cartas Personalizadas
+ * Plugin URI:        https://github.com/jmenes/cartas-personalizadas
+ * Description:       Plugin para vender cartas personalizadas con WooCommerce.
+ * Version:           1.0.0
+ * Author:            menes.studio
+ * Text Domain:       cartas-personalizadas
+ * GitHub Plugin URI: https://github.com/jmenes/cartas-personalizadas
+ * Primary Branch:    main
+ * Update URI:        false
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
