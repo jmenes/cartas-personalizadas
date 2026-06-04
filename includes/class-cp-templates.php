@@ -411,6 +411,6 @@ class CP_Templates {
 		}
 
 		wp_enqueue_media();
-		wp_enqueue_script( 'cp-admin-script', CP_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ), '1.0.0', true );
+		wp_enqueue_script( 'cp-admin-script', CP_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ), filemtime( CP_PLUGIN_PATH . 'assets/js/admin.js' ), true );
 	}
 }
