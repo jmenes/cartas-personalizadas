@@ -9,6 +9,13 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
+.cp-personalization-form::after,
+.cp-template-layout-grid::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
 .cp-template-block {
     margin-bottom: 35px;
     padding-bottom: 25px;
@@ -64,21 +71,7 @@
     cursor: not-allowed;
 }
 
-/* Contenedor de Visor Individual (Por defecto debajo en móvil) */
-.cp-preview-container {
-    margin-top: 20px;
-    border: 2px dashed #d1d5db;
-    padding: 15px;
-    text-align: center;
-    background: #f9fafb;
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    box-sizing: border-box;
-    transition: all 0.25s ease;
-}
+/* Contenedor de Visor Individual (Estilos consolidados abajo) */
 
 .cp-preview-container .cp-preview-placeholder {
     color: #6b7280;
@@ -87,14 +80,7 @@
 }
 
 /* Canvas del PDF */
-.cp-preview-container canvas {
-    max-width: 100% !important;
-    height: auto !important;
-    border-radius: 6px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    background: #fff;
-    border: 1px solid #e5e7eb;
-}
+/* Canvas del PDF (Estilos consolidados abajo) */
 
 /* Contenedor Central / Shortcode [cp_preview] */
 #cp-preview-container {
@@ -161,14 +147,25 @@
 .cp-preview-container {
     position: relative;
     width: 100%;
+    margin-top: 20px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #f9fafb;
+    text-align: center;
     overflow: hidden;
     cursor: pointer;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
     box-sizing: border-box;
+    display: block;
+}
+
+@media (max-width: 767px) {
+    .cp-preview-container {
+        max-width: 320px; /* Evita que la carta crezca demasiado y empuje/solape contenido en móviles */
+        margin-left: auto;
+        margin-right: auto;
+    }
 }
 
 .cp-preview-bg-image {
