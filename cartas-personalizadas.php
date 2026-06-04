@@ -6,9 +6,8 @@
  * Version:           1.0.0
  * Author:            menes.studio
  * Text Domain:       cartas-personalizadas
- * GitHub Plugin URI: https://github.com/jmenes/cartas-personalizadas
+ * GitHub Plugin URI: jmenes/cartas-personalizadas
  * Primary Branch:    main
- * Update URI:        false
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
