@@ -412,6 +412,11 @@ jQuery(document).ready(function ($) {
         var $form = $(this);
         $('.cp-personalization-form').find(':input:not(:disabled)').each(function () {
             if (!$.contains($form[0], this)) {
+                // Skip unchecked radio buttons and checkboxes
+                if ($(this).is('[type="radio"], [type="checkbox"]') && !$(this).is(':checked')) {
+                    return;
+                }
+
                 var name = $(this).attr('name');
                 if (name) {
                     // Remove any previously injected hidden input for this name to avoid duplicates
