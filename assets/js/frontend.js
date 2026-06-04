@@ -112,18 +112,21 @@ jQuery(document).ready(function ($) {
         });
     }
 
-    // Trigger on button click or clicking the placeholder image/overlay
-    $(document).on('click', '.cp-preview-btn, .cp-preview-container, .cp-preview-placeholder-wrap, .cp-preview-overlay', function (e) {
+    // Trigger on button click or clicking the placeholder container
+    $(document).on('click', '.cp-preview-btn, .cp-preview-container', function (e) {
         // Prevent event bubbling if clicking elements inside container (like the active canvas)
         if ($(e.target).closest('canvas').length) {
             return;
         }
 
         var index;
-        var $container = $(this).closest('.cp-preview-container');
-        if ($container.length) {
-            index = $container.data('index');
+        if ($(this).hasClass('cp-preview-container')) {
+            if ($(this).hasClass('cp-preview-active')) {
+                return; // Do nothing if it's already showing the PDF
+            }
+            index = $(this).data('index');
         } else {
+            // It is the button
             index = $(this).data('index');
         }
 
@@ -149,7 +152,7 @@ jQuery(document).ready(function ($) {
 
         // Update preview automatically if we are on the form page and the PDF has already been generated once
         var $container = $('#cp-preview-container-' + tIndex);
-        if ($container.length && !$container.find('.cp-preview-placeholder-wrap').length) {
+        if ($container.length && $container.hasClass('cp-preview-active')) {
             generatePreview(tIndex);
         }
     });
@@ -180,7 +183,7 @@ jQuery(document).ready(function ($) {
                 canvas.style.width = '100%';
                 canvas.style.border = '1px solid #ccc';
 
-                $container.html(canvas);
+                $container.html(canvas).addClass('cp-preview-active');
 
                 var context = canvas.getContext('2d');
                 canvas.height = viewport.height;
