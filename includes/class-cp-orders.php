@@ -19,6 +19,9 @@ class CP_Orders {
 
 		// Attach PDF to Customer Completed Order Email
 		add_filter( 'woocommerce_email_attachments', array( $this, 'attach_pdf_to_customer_email' ), 10, 3 );
+
+		// Hide internal PDF meta from order item meta display
+		add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'hide_internal_order_item_meta' ), 10, 2 );
 	}
 
 	public function generate_order_pdfs( $order_id ) {
@@ -206,5 +209,27 @@ class CP_Orders {
 		}
 
 		return $attachments;
+	}
+
+	/**
+	 * Hide internal PDF metadata from order items display (emails, checkout, thank you, admin order view)
+	 */
+	public function hide_internal_order_item_meta( $formatted_meta, $item ) {
+		$hidden_keys = array(
+			'_cp_pdf_url',
+			'_cp_pdf_urls',
+			'_cp_pdf_paths',
+			'_cp_personalizations',
+			'_cp_name',
+			'_cp_content'
+		);
+
+		foreach ( $formatted_meta as $key => $meta ) {
+			if ( in_array( $meta->key, $hidden_keys, true ) ) {
+				unset( $formatted_meta[ $key ] );
+			}
+		}
+
+		return $formatted_meta;
 	}
 }
