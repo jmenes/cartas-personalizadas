@@ -381,4 +381,43 @@ jQuery(document).ready(function ($) {
         $(this).scrollTop(scrollTop - walkY);
         e.preventDefault(); // Prevent page scrolling during preview pan
     });
+
+    // Associate personalization inputs with the WooCommerce cart form to support page builders / Elementor
+    // where the personalization form is rendered outside the actual WooCommerce cart form.
+    function linkInputsToCartForm() {
+        var $cartForm = $('form.cart');
+        if ($cartForm.length) {
+            var formId = $cartForm.attr('id');
+            if (!formId) {
+                formId = 'cp-cart-form';
+                $cartForm.attr('id', formId);
+            }
+            // Link all inputs inside our form to the WooCommerce cart form
+            $('.cp-personalization-form :input').attr('form', formId);
+        }
+    }
+
+    // Run on load
+    linkInputsToCartForm();
+
+    // Fallback: Dynamically inject inputs on cart form submission if they are outside the form
+    $(document).on('submit', 'form.cart', function () {
+        var $form = $(this);
+        $('.cp-personalization-form').find(':input:not(:disabled)').each(function () {
+            if (!$.contains($form[0], this)) {
+                var name = $(this).attr('name');
+                if (name) {
+                    // Remove any previously injected hidden input for this name to avoid duplicates
+                    $form.find('input[type="hidden"][name="' + name + '"]').remove();
+                    
+                    var val = $(this).val();
+                    $('<input>').attr({
+                        type: 'hidden',
+                        name: name,
+                        value: val
+                    }).appendTo($form);
+                }
+            }
+        });
+    });
 });
