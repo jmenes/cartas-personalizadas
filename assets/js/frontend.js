@@ -191,11 +191,19 @@ jQuery(document).ready(function ($) {
                 var canvas = document.createElement('canvas');
                 canvas.id = canvasId;
 
-                // Remove any old canvas elements first
-                $container.find('canvas').remove();
+                // Remove any old canvas/controls first
+                $container.find('canvas, .cp-zoom-controls').remove();
                 
                 // Append the canvas absolutely inside the container
                 $container.append(canvas);
+
+                // Add zoom controls
+                var zoomHtml = '<div class="cp-zoom-controls">' +
+                    '<button type="button" class="cp-zoom-btn cp-zoom-out" data-index="' + index + '" title="Alejar">−</button>' +
+                    '<button type="button" class="cp-zoom-btn cp-zoom-reset" data-index="' + index + '" title="Restablecer">↺</button>' +
+                    '<button type="button" class="cp-zoom-btn cp-zoom-in" data-index="' + index + '" title="Acercar">+</button>' +
+                    '</div>';
+                $container.append(zoomHtml);
 
                 var context = canvas.getContext('2d');
                 canvas.height = viewport.height;
@@ -219,4 +227,48 @@ jQuery(document).ready(function ($) {
             $container.html('Error loading PDF preview.');
         });
     }
+
+    // Zoom control state
+    var cpZoomLevels = {};
+
+    $(document).on('click', '.cp-zoom-btn', function (e) {
+        e.stopPropagation(); // Prevent triggering other clicks on container
+        
+        var index = $(this).data('index');
+        var $container = $('#cp-preview-container-' + index);
+        if (!$container.length) return;
+        
+        var $canvas = $container.find('canvas');
+        if (!$canvas.length) return;
+        
+        if (cpZoomLevels[index] === undefined) {
+            cpZoomLevels[index] = 1.0;
+        }
+        
+        if ($(this).hasClass('cp-zoom-in')) {
+            cpZoomLevels[index] = Math.min(cpZoomLevels[index] + 0.25, 2.5);
+        } else if ($(this).hasClass('cp-zoom-out')) {
+            cpZoomLevels[index] = Math.max(cpZoomLevels[index] - 0.25, 0.75);
+        } else if ($(this).hasClass('cp-zoom-reset')) {
+            cpZoomLevels[index] = 1.0;
+        }
+        
+        var targetWidth = (cpZoomLevels[index] * 100) + '%';
+        
+        if (cpZoomLevels[index] === 1.0) {
+            $canvas.css({
+                'width': '100%',
+                'left': '0',
+                'top': '0',
+                'position': 'absolute'
+            });
+            $container.css('overflow', 'hidden');
+        } else {
+            $container.css('overflow', 'auto');
+            $canvas.css({
+                'width': targetWidth,
+                'position': 'relative'
+            });
+        }
+    });
 });
