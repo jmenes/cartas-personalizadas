@@ -3,7 +3,7 @@
  * Plugin Name:       Cartas Personalizadas
  * Plugin URI:        https://github.com/jmenes/cartas-personalizadas
  * Description:       Plugin para vender cartas personalizadas con WooCommerce.
- * Version:           1.0.5
+ * Version:           1.0.6
  * Author:            menes.studio
  * Text Domain:       cartas-personalizadas
  * GitHub Plugin URI: jmenes/cartas-personalizadas
