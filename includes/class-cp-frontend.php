@@ -390,6 +390,8 @@ class CP_Frontend {
 	}
 
 	public function ajax_generate_preview() {
+		$t_start = microtime(true);
+
 		if ( session_id() ) {
 			session_write_close();
 		}
@@ -429,6 +431,7 @@ class CP_Frontend {
 		error_log( 'CP_Frontend: Generating preview for product ' . $product_id . ' with template ' . $template_id );
 		
 		try {
+			$t_pdf_start = microtime(true);
 			$pdf = new CP_PDF();
 			$preview_url = $pdf->generate_preview( array( 
 				'blocks' => $sanitized_blocks,
@@ -436,6 +439,18 @@ class CP_Frontend {
 				'template_id' => $template_id,
 				'model_id' => $model_id
 			) );
+			$t_pdf_end = microtime(true);
+
+			$log_file = CP_PLUGIN_PATH . 'debug_perf.log';
+			$preview_length = strlen( $preview_url );
+			$t_total = microtime(true) - $t_start;
+
+			$log_msg = "--- AJAX Generate Preview Debug (" . date('Y-m-d H:i:s') . ") ---\n";
+			$log_msg .= "PDF Gen+Base64 time: " . ($t_pdf_end - $t_pdf_start) . " seconds\n";
+			$log_msg .= "Total AJAX processing time: " . $t_total . " seconds\n";
+			$log_msg .= "Base64 payload length: " . $preview_length . " characters (" . round($preview_length / 1024 / 1024, 2) . " MB)\n";
+			@file_put_contents( $log_file, $log_msg, FILE_APPEND );
+
 			error_log( 'CP_Frontend: Preview generated successfully' );
 		} catch ( Exception $e ) {
 			error_log( 'CP_Frontend: Error generating preview: ' . $e->getMessage() );
