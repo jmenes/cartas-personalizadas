@@ -256,18 +256,18 @@ jQuery(document).ready(function ($) {
         var targetWidth = (cpZoomLevels[index] * 100) + '%';
         
         if (cpZoomLevels[index] === 1.0) {
+            $container.removeClass('cp-zoomed');
             $canvas.css({
-                'width': '100%',
-                'left': '0',
-                'top': '0',
-                'position': 'absolute'
+                'width': '',
+                'height': ''
             });
             $container.css('overflow', 'hidden');
         } else {
+            $container.addClass('cp-zoomed');
             $container.css('overflow', 'auto');
             $canvas.css({
                 'width': targetWidth,
-                'position': 'relative'
+                'height': 'auto'
             });
         }
     });

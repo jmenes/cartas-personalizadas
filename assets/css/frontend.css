@@ -274,14 +274,20 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 100% !important;
-    height: 100% !important;
+    width: 100%;
+    height: 100%;
     z-index: 6; /* Rendered on top of background and overlays */
     opacity: 0;
     transition: opacity 0.4s ease;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+}
+
+/* When zoomed, we override the absolute position and size so the canvas can scroll */
+.cp-preview-container.cp-zoomed canvas {
+    position: relative;
+    height: auto;
 }
 
 /* Active PDF styles (fade out placeholders, fade in canvas) */
