@@ -270,7 +270,25 @@
 }
 
 /* Canvas styling and positioning inside aspect-ratio container */
-.cp-preview-container canvas {
+.cp-preview-scroll-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.cp-preview-container.cp-zoomed .cp-preview-scroll-wrapper {
+    overflow: auto;
+    cursor: grab;
+}
+
+.cp-preview-container.cp-zoomed .cp-preview-scroll-wrapper.cp-dragging {
+    cursor: grabbing;
+}
+
+/* Canvas styling and positioning inside scroll wrapper */
+.cp-preview-scroll-wrapper canvas {
     position: absolute;
     top: 0;
     left: 0;
@@ -285,7 +303,7 @@
 }
 
 /* When zoomed, we override the absolute position and size so the canvas can scroll */
-.cp-preview-container.cp-zoomed canvas {
+.cp-preview-container.cp-zoomed .cp-preview-scroll-wrapper canvas {
     position: relative;
     height: auto !important;
     max-width: none !important;
@@ -300,7 +318,7 @@
     min-height: auto !important;
 }
 
-.cp-preview-container.cp-preview-active canvas {
+.cp-preview-container.cp-preview-active .cp-preview-scroll-wrapper canvas {
     opacity: 1;
 }
 

@@ -191,13 +191,17 @@ jQuery(document).ready(function ($) {
                 var canvas = document.createElement('canvas');
                 canvas.id = canvasId;
 
-                // Remove any old canvas/controls first
-                $container.find('canvas, .cp-zoom-controls').remove();
+                // Remove any old canvas/controls/wrapper first
+                $container.find('.cp-preview-scroll-wrapper, .cp-zoom-controls').remove();
                 
-                // Append the canvas absolutely inside the container
-                $container.append(canvas);
+                // Create scroll wrapper
+                var $scrollWrapper = $('<div class="cp-preview-scroll-wrapper"></div>');
+                
+                // Append the canvas inside the wrapper
+                $scrollWrapper.append(canvas);
+                $container.append($scrollWrapper);
 
-                // Add zoom controls
+                // Add zoom controls directly to container so they remain floating
                 var zoomHtml = '<div class="cp-zoom-controls">' +
                     '<button type="button" class="cp-zoom-btn cp-zoom-out" data-index="' + index + '" title="Alejar">−</button>' +
                     '<button type="button" class="cp-zoom-btn cp-zoom-reset" data-index="' + index + '" title="Restablecer">↺</button>' +
@@ -256,6 +260,12 @@ jQuery(document).ready(function ($) {
             return;
         }
         
+        var $scrollWrapper = $container.find('.cp-preview-scroll-wrapper');
+        if (!$scrollWrapper.length) {
+            console.error('Cartas Zoom: Scroll wrapper not found');
+            return;
+        }
+        
         if (cpZoomLevels[index] === undefined) {
             cpZoomLevels[index] = 1.0;
         }
@@ -272,6 +282,22 @@ jQuery(document).ready(function ($) {
         
         console.log('Cartas Zoom: Level changed from', oldZoom, 'to', cpZoomLevels[index]);
         
+        // Calculate viewport and scroll metrics for center-anchored scaling
+        var containerWidth = $scrollWrapper.width() || $container.width();
+        var containerHeight = $scrollWrapper.height() || $container.height();
+        
+        var oldCanvasWidth = containerWidth * oldZoom;
+        var oldCanvasHeight = containerHeight * oldZoom;
+        
+        var oldScrollLeft = $scrollWrapper.scrollLeft() || 0;
+        var oldScrollTop = $scrollWrapper.scrollTop() || 0;
+        
+        var centerX = oldScrollLeft + containerWidth / 2;
+        var centerY = oldScrollTop + containerHeight / 2;
+        
+        var ratioX = centerX / oldCanvasWidth;
+        var ratioY = centerY / oldCanvasHeight;
+        
         var targetWidth = (cpZoomLevels[index] * 100) + '%';
         
         if (cpZoomLevels[index] === 1.0) {
@@ -280,14 +306,79 @@ jQuery(document).ready(function ($) {
                 'width': '',
                 'height': ''
             });
-            $container.css('overflow', 'hidden');
+            $scrollWrapper.scrollLeft(0).scrollTop(0);
         } else {
             $container.addClass('cp-zoomed');
-            $container.css('overflow', 'auto');
             $canvas.css({
                 'width': targetWidth,
                 'height': 'auto'
             });
+            
+            var newCanvasWidth = containerWidth * cpZoomLevels[index];
+            var newCanvasHeight = containerHeight * cpZoomLevels[index];
+            
+            var newScrollLeft = (ratioX * newCanvasWidth) - (containerWidth / 2);
+            var newScrollTop = (ratioY * newCanvasHeight) - (containerHeight / 2);
+            
+            $scrollWrapper.scrollLeft(newScrollLeft);
+            $scrollWrapper.scrollTop(newScrollTop);
         }
+    });
+
+    // Panning (Drag-to-scroll) functionality
+    var isDown = false;
+    var startX, startY, scrollLeft, scrollTop;
+
+    $(document).on('mousedown', '.cp-preview-scroll-wrapper', function (e) {
+        var $container = $(this).closest('.cp-preview-container');
+        if (!$container.hasClass('cp-zoomed')) return;
+        
+        isDown = true;
+        $(this).addClass('cp-dragging');
+        startX = e.pageX;
+        startY = e.pageY;
+        scrollLeft = $(this).scrollLeft();
+        scrollTop = $(this).scrollTop();
+    });
+
+    $(document).on('mouseleave mouseup', '.cp-preview-scroll-wrapper', function () {
+        isDown = false;
+        $(this).removeClass('cp-dragging');
+    });
+
+    $(document).on('mousemove', '.cp-preview-scroll-wrapper', function (e) {
+        if (!isDown) return;
+        e.preventDefault();
+        var walkX = (e.pageX - startX) * 1.2;
+        var walkY = (e.pageY - startY) * 1.2;
+        $(this).scrollLeft(scrollLeft - walkX);
+        $(this).scrollTop(scrollTop - walkY);
+    });
+
+    // Touch support for panning on mobile devices
+    $(document).on('touchstart', '.cp-preview-scroll-wrapper', function (e) {
+        var $container = $(this).closest('.cp-preview-container');
+        if (!$container.hasClass('cp-zoomed')) return;
+        
+        isDown = true;
+        var touch = e.originalEvent.touches[0];
+        startX = touch.pageX;
+        startY = touch.pageY;
+        scrollLeft = $(this).scrollLeft();
+        scrollTop = $(this).scrollTop();
+    });
+
+    $(document).on('touchend touchcancel', '.cp-preview-scroll-wrapper', function () {
+        isDown = false;
+    });
+
+    $(document).on('touchmove', '.cp-preview-scroll-wrapper', function (e) {
+        if (!isDown) return;
+        var touch = e.originalEvent.touches[0];
+        var walkX = (touch.pageX - startX);
+        var walkY = (touch.pageY - startY);
+        $(this).scrollLeft(scrollLeft - walkX);
+        $(this).scrollTop(scrollTop - walkY);
+        e.preventDefault(); // Prevent page scrolling during preview pan
     });
 });
