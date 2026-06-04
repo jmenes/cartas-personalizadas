@@ -134,6 +134,11 @@ class CP_Frontend {
 			
 			echo '<div class="cp-template-block" data-index="' . $t_index . '" data-template="' . esc_attr( $template_id ) . '" style="margin-bottom: 20px;">';
 			echo '<div style="font-size: 1.25em; font-weight: bold; margin-bottom: 15px; color: #444;">' . esc_html( $template_title ) . '</div>';
+			
+			echo '<div class="cp-template-layout-grid">';
+			
+			// Left side: Form fields
+			echo '<div class="cp-template-form-side">';
 
 			$models_data = get_post_meta( $template_id, '_cp_models', true );
 			if ( ! is_array( $models_data ) ) {
@@ -256,10 +261,14 @@ class CP_Frontend {
 
 			echo '<button type="button" class="button cp-preview-btn" data-index="' . $t_index . '">' . sprintf( __( 'Previsualizar %s', 'cartas-personalizadas' ), $template_title ) . '</button>';
 			
-			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" style="margin-top: 15px; border: 2px dashed #ccc; padding: 15px; text-align: center; background: #fafafa; min-height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">';
+			echo '</div>'; // close cp-template-form-side
+			
+			// Right side: Preview
+			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" style="border: 2px dashed #ccc; padding: 15px; text-align: center; background: #fafafa; min-height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">';
 			echo '<span style="color: #999;">' . sprintf( __( 'La previsualización de %s aparecerá aquí.', 'cartas-personalizadas' ), esc_html( $template_title ) ) . '</span>';
 			echo '</div>';
 			
+			echo '</div>'; // close cp-template-layout-grid
 			echo '</div>'; // close cp-template-block
 		}
 		

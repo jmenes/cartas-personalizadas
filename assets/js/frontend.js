@@ -1,4 +1,22 @@
 jQuery(document).ready(function ($) {
+    // Check if a central preview container exists (from [cp_preview] shortcode)
+    var $centralContainer = $('#cp-preview-container');
+    var $individualContainers = $('.cp-preview-container');
+    if ($centralContainer.length > 0 && $individualContainers.length > 0) {
+        // Clear placeholder in central container
+        $centralContainer.empty();
+        
+        // Add class to form indicating we have a central preview container
+        $('.cp-personalization-form').addClass('cp-has-central-preview');
+        
+        // Move all individual containers to the central container
+        $individualContainers.each(function () {
+            $centralContainer.append($(this));
+            // Reset custom inline margins for central stacking
+            $(this).css('margin-top', '0').css('margin-bottom', '25px');
+        });
+    }
+
     function generatePreview(index) {
         var $block = $('.cp-template-block[data-index="' + index + '"]');
         if (!$block.length) return;
