@@ -232,18 +232,35 @@ jQuery(document).ready(function ($) {
     var cpZoomLevels = {};
 
     $(document).on('click', '.cp-zoom-btn', function (e) {
+        e.preventDefault();
         e.stopPropagation(); // Prevent triggering other clicks on container
         
-        var index = $(this).data('index');
-        var $container = $('#cp-preview-container-' + index);
-        if (!$container.length) return;
+        console.log('Cartas: Zoom button clicked:', this.className);
+        
+        var $container = $(this).closest('.cp-preview-container');
+        if (!$container.length) {
+            console.error('Cartas Zoom: Container not found');
+            return;
+        }
+        
+        var index = $container.attr('data-index');
+        if (index === undefined) {
+            index = $container.data('index');
+        }
+        
+        console.log('Cartas Zoom: Index:', index);
         
         var $canvas = $container.find('canvas');
-        if (!$canvas.length) return;
+        if (!$canvas.length) {
+            console.error('Cartas Zoom: Canvas not found inside container');
+            return;
+        }
         
         if (cpZoomLevels[index] === undefined) {
             cpZoomLevels[index] = 1.0;
         }
+        
+        var oldZoom = cpZoomLevels[index];
         
         if ($(this).hasClass('cp-zoom-in')) {
             cpZoomLevels[index] = Math.min(cpZoomLevels[index] + 0.25, 2.5);
@@ -252,6 +269,8 @@ jQuery(document).ready(function ($) {
         } else if ($(this).hasClass('cp-zoom-reset')) {
             cpZoomLevels[index] = 1.0;
         }
+        
+        console.log('Cartas Zoom: Level changed from', oldZoom, 'to', cpZoomLevels[index]);
         
         var targetWidth = (cpZoomLevels[index] * 100) + '%';
         

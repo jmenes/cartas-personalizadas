@@ -56,13 +56,13 @@ class CP_Frontend {
 			wp_enqueue_script( 'pdfjs', CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.min.js', array(), '3.11.174', true );
 			wp_enqueue_script( 'pdfjs-worker', CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.worker.min.js', array(), '3.11.174', true );
 			
-			wp_enqueue_script( 'cp-frontend', CP_PLUGIN_URL . 'assets/js/frontend.js', array( 'jquery', 'pdfjs' ), '1.0.0', true );
+			wp_enqueue_script( 'cp-frontend', CP_PLUGIN_URL . 'assets/js/frontend.js', array( 'jquery', 'pdfjs' ), filemtime( CP_PLUGIN_PATH . 'assets/js/frontend.js' ), true );
 			wp_localize_script( 'cp-frontend', 'cp_ajax', array(
 				'url' => admin_url( 'admin-ajax.php' ),
 				'nonce' => wp_create_nonce( 'cp_preview_nonce' ),
 				'pdfWorkerUrl' => CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.worker.min.js'
 			) );
-			wp_enqueue_style( 'cp-frontend', CP_PLUGIN_URL . 'assets/css/frontend.css' );
+			wp_enqueue_style( 'cp-frontend', CP_PLUGIN_URL . 'assets/css/frontend.css', array(), filemtime( CP_PLUGIN_PATH . 'assets/css/frontend.css' ) );
 		}
 	}
 
