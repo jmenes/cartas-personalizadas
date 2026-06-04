@@ -95,6 +95,12 @@ class CP_PDF {
 			// Background Image: Only loaded for preview or for digital delivery
 			$delivery_format = isset( $data['delivery_format'] ) ? $data['delivery_format'] : 'physical';
 			$background_image = get_post_meta( $template_id, '_cp_background_image', true );
+			
+			$log_file = CP_PLUGIN_PATH . 'debug_perf.log';
+			$log_msg = "--- PDF Generation Debug (" . date('Y-m-d H:i:s') . ") ---\n";
+			$log_msg .= "Template ID: " . $template_id . "\n";
+			$log_msg .= "Background Image URL: " . $background_image . "\n";
+
 			if ( $background_image && ( $is_preview || $delivery_format === 'digital' ) ) {
 				$local_bg = '';
 				
@@ -109,16 +115,29 @@ class CP_PDF {
 					}
 				}
 				
+				$log_msg .= "Resolved local_bg (wp-content check): " . $local_bg . " (Exists: " . (file_exists($local_bg) ? 'YES' : 'NO') . ")\n";
+
 				if ( empty( $local_bg ) || ! file_exists( $local_bg ) ) {
 					$local_bg = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $background_image );
+					$log_msg .= "Resolved local_bg (fallback str_replace): " . $local_bg . " (Exists: " . (file_exists($local_bg) ? 'YES' : 'NO') . ")\n";
 				}
 				
+				$t0 = microtime(true);
 				if ( ! empty( $local_bg ) && file_exists( $local_bg ) ) {
 					$pdf->Image( $local_bg, 0, 0, $dim_w, $dim_h );
+					$log_msg .= "Loaded from LOCAL path.\n";
 				} elseif ( ini_get('allow_url_fopen') ) {
 					$pdf->Image( $background_image, 0, 0, $dim_w, $dim_h );
+					$log_msg .= "Loaded from REMOTE URL via allow_url_fopen.\n";
+				} else {
+					$log_msg .= "Failed to load background image (not found locally and allow_url_fopen disabled).\n";
 				}
+				$t1 = microtime(true);
+				$log_msg .= "Image render time: " . ($t1 - $t0) . " seconds\n";
+			} else {
+				$log_msg .= "No background image to load.\n";
 			}
+			@file_put_contents( $log_file, $log_msg, FILE_APPEND );
 
 			// Models Configuration
 			$models_data = get_post_meta( $template_id, '_cp_models', true );
