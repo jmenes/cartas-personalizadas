@@ -154,3 +154,37 @@
         top: 30px;
     }
 }
+
+/* ==========================================
+   ESTILOS DE CONTENEDOR PREVIOS Y PLACEHOLDERS
+   ========================================== */
+.cp-preview-placeholder-wrap {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.cp-preview-placeholder-img {
+    transition: transform 0.3s ease;
+    display: block;
+}
+
+.cp-preview-container:hover .cp-preview-placeholder-img {
+    transform: scale(1.02);
+}
+
+.cp-preview-container:hover .cp-preview-overlay {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.cp-preview-container:hover .cp-preview-overlay-btn {
+    background: rgba(0, 0, 0, 0.85) !important;
+    transform: scale(1.05);
+}
+
+.cp-preview-overlay-btn {
+    transition: all 0.2s ease;
+}
+

@@ -112,10 +112,24 @@ jQuery(document).ready(function ($) {
         });
     }
 
-    // Trigger on button click
-    $(document).on('click', '.cp-preview-btn', function () {
-        var index = $(this).data('index');
-        generatePreview(index);
+    // Trigger on button click or clicking the placeholder image/overlay
+    $(document).on('click', '.cp-preview-btn, .cp-preview-container, .cp-preview-placeholder-wrap, .cp-preview-overlay', function (e) {
+        // Prevent event bubbling if clicking elements inside container (like the active canvas)
+        if ($(e.target).closest('canvas').length) {
+            return;
+        }
+
+        var index;
+        var $container = $(this).closest('.cp-preview-container');
+        if ($container.length) {
+            index = $container.data('index');
+        } else {
+            index = $(this).data('index');
+        }
+
+        if (index !== undefined) {
+            generatePreview(index);
+        }
     });
 
     // Handle Model Selection change
@@ -133,17 +147,15 @@ jQuery(document).ready(function ($) {
         $activeFields.show();
         $activeFields.find('.cp-dynamic-field').prop('disabled', false);
 
-        // Update preview automatically if we are on the form page
-        generatePreview(tIndex);
-    });
-
-    // Trigger on page load for all active template blocks in parallel
-    $('.cp-template-block').each(function () {
-        var index = $(this).data('index');
-        if (index !== undefined) {
-            generatePreview(index);
+        // Update preview automatically if we are on the form page and the PDF has already been generated once
+        var $container = $('#cp-preview-container-' + tIndex);
+        if ($container.length && !$container.find('.cp-preview-placeholder-wrap').length) {
+            generatePreview(tIndex);
         }
     });
+
+    // We no longer trigger generatePreview automatically on page load to save resources
+    // and make the initial page load instant. The static background is displayed instead.
 
     function renderPDF(url, $container, index) {
         // Ensure pdfjsLib is available

@@ -264,8 +264,18 @@ class CP_Frontend {
 			echo '</div>'; // close cp-template-form-side
 			
 			// Right side: Preview
-			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" style="border: 2px dashed #ccc; padding: 15px; text-align: center; background: #fafafa; min-height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">';
-			echo '<span style="color: #999;">' . sprintf( __( 'La previsualización de %s aparecerá aquí.', 'cartas-personalizadas' ), esc_html( $template_title ) ) . '</span>';
+			$background_image = get_post_meta( $template_id, '_cp_background_image', true );
+			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" data-index="' . $t_index . '" style="border: 1px solid #ddd; padding: 10px; text-align: center; background: #fafafa; min-height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 4px; position: relative; overflow: hidden; cursor: pointer;">';
+			if ( $background_image ) {
+				echo '<div class="cp-preview-placeholder-wrap" style="position: relative; width: 100%;">';
+				echo '<img src="' . esc_url( $background_image ) . '" style="width: 100%; height: auto; border: 1px solid #eee; display: block;" class="cp-preview-placeholder-img">';
+				echo '<div class="cp-preview-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.35); transition: background 0.3s ease;">';
+				echo '<span class="button cp-preview-overlay-btn" style="pointer-events: none; background: rgba(0,0,0,0.7); color: #fff; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">' . __( 'Ver Previsualización', 'cartas-personalizadas' ) . '</span>';
+				echo '</div>';
+				echo '</div>';
+			} else {
+				echo '<span style="color: #999;">' . sprintf( __( 'La previsualización de %s aparecerá aquí.', 'cartas-personalizadas' ), esc_html( $template_title ) ) . '</span>';
+			}
 			echo '</div>';
 			
 			echo '</div>'; // close cp-template-layout-grid
