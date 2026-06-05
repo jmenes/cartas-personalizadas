@@ -34,6 +34,9 @@ class CP_Frontend {
 		add_shortcode( 'cp_preview', array( $this, 'render_preview_shortcode' ) );
 		// Shortcode for form
 		add_shortcode( 'cp_form', array( $this, 'render_form_shortcode' ) );
+
+		// Hide short description in cart and checkout
+		add_filter( 'woocommerce_short_description', array( $this, 'hide_short_description_in_cart' ), 100 );
 	}
 
 	public function render_preview_shortcode() {
@@ -497,5 +500,20 @@ class CP_Frontend {
 		} else {
 			wp_send_json_error( array( 'message' => 'Error generating preview' ) );
 		}
+	}
+
+	public function hide_short_description_in_cart( $short_description ) {
+		if ( is_cart() || is_checkout() ) {
+			return '';
+		}
+
+		// Also handle WooCommerce Blocks (Store API requests)
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			if ( isset( $_SERVER['REQUEST_URI'] ) && strpos( $_SERVER['REQUEST_URI'], '/wc/store' ) !== false ) {
+				return '';
+			}
+		}
+
+		return $short_description;
 	}
 }
