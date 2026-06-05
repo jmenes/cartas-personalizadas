@@ -413,22 +413,7 @@ class CP_Frontend {
 	}
 
 	public function display_cart_item_data( $item_data, $cart_item ) {
-		if ( isset( $cart_item['cp_personalizations'] ) && is_array( $cart_item['cp_personalizations'] ) ) {
-			foreach ( $cart_item['cp_personalizations'] as $index => $data ) {
-				$item_data[] = array(
-					'key'     => sprintf( __( 'Plantilla: %s', 'cartas-personalizadas' ), $data['template_name'] ),
-					'value'   => !empty($data['model_name']) ? sprintf( __( 'Modelo: %s', 'cartas-personalizadas' ), $data['model_name'] ) : __( 'Personalizada ✔', 'cartas-personalizadas' ),
-				);
-				
-				if ( isset( $data['delivery_format'] ) ) {
-					$format_label = ( $data['delivery_format'] === 'digital' ) ? __( 'Digital (Descarga PDF)', 'cartas-personalizadas' ) : __( 'Físico (Envío Postal)', 'cartas-personalizadas' );
-					$item_data[] = array(
-						'key'   => __( 'Formato', 'cartas-personalizadas' ),
-						'value' => $format_label,
-					);
-				}
-			}
-		}
+		// No mostrar plantilla, modelo ni formato en el carrito
 		return $item_data;
 	}
 
