@@ -35,8 +35,11 @@ class CP_Frontend {
 		// Shortcode for form
 		add_shortcode( 'cp_form', array( $this, 'render_form_shortcode' ) );
 
-		// Hide short description in cart and checkout
+		// Hide description and short description in cart and checkout
 		add_filter( 'woocommerce_short_description', array( $this, 'hide_short_description_in_cart' ), 100 );
+		add_filter( 'woocommerce_product_get_short_description', array( $this, 'hide_short_description_in_cart' ), 100 );
+		add_filter( 'woocommerce_product_get_description', array( $this, 'hide_short_description_in_cart' ), 100 );
+		add_filter( 'woocommerce_product_variation_get_description', array( $this, 'hide_short_description_in_cart' ), 100 );
 	}
 
 	public function render_preview_shortcode() {
@@ -502,16 +505,41 @@ class CP_Frontend {
 		}
 	}
 
-	public function hide_short_description_in_cart( $short_description ) {
+	public function is_cart_or_checkout_context() {
 		if ( is_cart() || is_checkout() ) {
-			return '';
+			return true;
 		}
 
-		// Also handle WooCommerce Blocks (Store API requests)
+		// Check WooCommerce AJAX requests for cart/checkout (such as mini-cart/checkout updates)
+		if ( wp_doing_ajax() ) {
+			$action = isset( $_REQUEST['action'] ) ? $_REQUEST['action'] : '';
+			$wc_ajax = isset( $_REQUEST['wc-ajax'] ) ? $_REQUEST['wc-ajax'] : '';
+			
+			$cart_checkout_actions = array(
+				'get_refreshed_fragments',
+				'update_order_review',
+				'checkout',
+				'add_to_cart'
+			);
+
+			if ( in_array( $wc_ajax, $cart_checkout_actions, true ) || in_array( $action, $cart_checkout_actions, true ) ) {
+				return true;
+			}
+		}
+
+		// WooCommerce Store API REST requests (Blocks Cart/Checkout)
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
 			if ( isset( $_SERVER['REQUEST_URI'] ) && strpos( $_SERVER['REQUEST_URI'], '/wc/store' ) !== false ) {
-				return '';
+				return true;
 			}
+		}
+
+		return false;
+	}
+
+	public function hide_short_description_in_cart( $short_description ) {
+		if ( $this->is_cart_or_checkout_context() ) {
+			return '';
 		}
 
 		return $short_description;
