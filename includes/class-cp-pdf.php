@@ -15,6 +15,19 @@ class CP_PDF {
 		if ( ! file_exists( $cp_dir ) ) {
 			wp_mkdir_p( $cp_dir );
 		}
+
+		// Deny directory listing (protect file names from being listed/browsed)
+		$htaccess_file = $cp_dir . '/.htaccess';
+		if ( ! file_exists( $htaccess_file ) ) {
+			$rules = "Options -Indexes\n";
+			@file_put_contents( $htaccess_file, $rules );
+		}
+
+		// Add empty index.html for extra folder protection
+		$index_file = $cp_dir . '/index.html';
+		if ( ! file_exists( $index_file ) ) {
+			@file_put_contents( $index_file, '' );
+		}
 	}
 
 	public function generate_preview( $data ) {

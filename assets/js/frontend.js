@@ -401,6 +401,17 @@ jQuery(document).ready(function ($) {
         }
     }
 
+    // Bloquear clic derecho y arrastre de imágenes/canvas en el contenedor de previsualización
+    $(document).on('contextmenu', '.cp-preview-container, .cp-preview-container canvas, .cp-preview-container img', function (e) {
+        e.preventDefault();
+        return false;
+    });
+
+    $(document).on('dragstart', '.cp-preview-container img, .cp-preview-container canvas', function (e) {
+        e.preventDefault();
+        return false;
+    });
+
     // Run on load
     linkInputsToCartForm();
 

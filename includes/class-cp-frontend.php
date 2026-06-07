@@ -419,7 +419,16 @@ class CP_Frontend {
 	}
 
 	public function display_cart_item_data( $item_data, $cart_item ) {
-		// No mostrar plantilla, modelo ni formato en el carrito
+		// Filtrar y eliminar atributos de variación 'Plantilla' y 'Formato' del carrito
+		if ( is_array( $item_data ) ) {
+			foreach ( $item_data as $key => $data ) {
+				$label = isset( $data['name'] ) ? $data['name'] : ( isset( $data['key'] ) ? $data['key'] : '' );
+				if ( stripos( $label, 'Plantilla' ) !== false || stripos( $label, 'Formato' ) !== false ) {
+					unset( $item_data[$key] );
+				}
+			}
+			$item_data = array_values( $item_data );
+		}
 		return $item_data;
 	}
 
