@@ -135,6 +135,26 @@ class CP_Frontend {
 		echo '<div class="cp-personalization-form">';
 		echo '<input type="hidden" id="cp_product_id" value="' . esc_attr( $product_id ) . '">';
 		
+		// Collect marker tags defined in the first template for synchronization across templates
+		$first_template_tags = array();
+		if ( ! empty( $templates[0] ) ) {
+			$first_models = get_post_meta( $templates[0], '_cp_models', true );
+			if ( ! is_array( $first_models ) ) {
+				$first_models = json_decode( $first_models, true ) ?: array();
+			}
+			if ( is_array( $first_models ) ) {
+				foreach ( $first_models as $f_model ) {
+					if ( isset( $f_model['variables'] ) && is_array( $f_model['variables'] ) ) {
+						foreach ( $f_model['variables'] as $f_var ) {
+							if ( ! empty( $f_var['tag'] ) ) {
+								$first_template_tags[ $f_var['tag'] ] = true;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		foreach ( $templates as $t_index => $template_id ) {
 			$template_title = get_the_title( $template_id );
 			
@@ -212,6 +232,12 @@ class CP_Frontend {
 						$max = isset( $variable['max_chars'] ) && !empty( $variable['max_chars'] ) ? intval( $variable['max_chars'] ) : '';
 						$max_attr = $max ? ' maxlength="' . $max . '"' : '';
 						
+						// Determine if this variable is shared with the first template
+						$is_synced = ( $t_index > 0 && isset( $first_template_tags[ $tag ] ) );
+						$readonly_attr = $is_synced ? ' readonly="readonly"' : '';
+						$synced_class = $is_synced ? ' cp-synced-field' : '';
+						$synced_style = $is_synced ? ' background-color: #f3f4f6; cursor: not-allowed; color: #555;' : '';
+
 						echo '<p class="form-row form-row-wide" style="width: 100%;">';
 						echo '<label for="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" style="display: block; margin-bottom: 5px;">' . esc_html( $label ) . ' <span class="required">*</span></label>';
 						if ( ! empty( $desc ) ) {
@@ -219,9 +245,9 @@ class CP_Frontend {
 						}
 						
 						if ( $v_type === 'textarea' ) {
-							echo '<textarea class="input-text cp-dynamic-field cp-dynamic-variable" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" rows="2" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px; resize: none;" required ' . $max_attr . ' ' . $disabled_attr . '></textarea>';
+							echo '<textarea class="input-text cp-dynamic-field cp-dynamic-variable' . $synced_class . '" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" rows="2" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px; resize: none;' . $synced_style . '" required ' . $max_attr . ' ' . $disabled_attr . $readonly_attr . '></textarea>';
 						} else {
-							echo '<input type="text" class="input-text cp-dynamic-field cp-dynamic-variable" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px;" required ' . $max_attr . ' ' . $disabled_attr . '>';
+							echo '<input type="text" class="input-text cp-dynamic-field cp-dynamic-variable' . $synced_class . '" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px;' . $synced_style . '" required ' . $max_attr . ' ' . $disabled_attr . $readonly_attr . '>';
 						}
 						echo '</p>';
 					}
@@ -319,7 +345,7 @@ class CP_Frontend {
 				echo '<div class="cp-preview-protection-layer"></div>';
 			}
 			echo '<div class="cp-preview-action-overlay">';
-			echo '<button type="button" class="button cp-preview-overlay-btn">' . __( 'Ver Previsualización', 'cartas-personalizadas' ) . '</button>';
+			echo '<button type="button" class="button cp-preview-overlay-btn">' . __( 'Ver previsualización', 'cartas-personalizadas' ) . '</button>';
 			echo '</div>';
 			echo '</div>';
 			

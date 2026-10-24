@@ -17,6 +17,71 @@ jQuery(document).ready(function ($) {
         });
     }
 
+    // Synchronize markers/variables from the primary template (index 0) to subsequent templates (index > 0)
+    function syncTemplateVariables() {
+        var $primaryBlock = $('.cp-template-block[data-index="0"]');
+        if (!$primaryBlock.length) return;
+
+        // Map tags to values for all active variables in primary template
+        var primaryValues = {};
+        $primaryBlock.find('.cp-dynamic-variable:not(:disabled)').each(function () {
+            var tag = $(this).data('tag');
+            if (tag) {
+                primaryValues[tag] = $(this).val();
+            }
+        });
+
+        // Update subsequent templates
+        $('.cp-template-block').each(function () {
+            var tIndex = parseInt($(this).data('index'), 10);
+            if (tIndex === 0) return;
+
+            var $subBlock = $(this);
+            $subBlock.find('.cp-dynamic-variable:not(:disabled)').each(function () {
+                var tag = $(this).data('tag');
+                if (!tag) return;
+
+                if (primaryValues.hasOwnProperty(tag)) {
+                    // Shared marker: keep synced and readonly
+                    if (primaryValues[tag] !== undefined) {
+                        $(this).val(primaryValues[tag]);
+                    }
+                    $(this).prop('readonly', true).addClass('cp-synced-field').css({
+                        'background-color': '#f3f4f6',
+                        'cursor': 'not-allowed',
+                        'color': '#555'
+                    });
+                } else {
+                    // Unique marker to this template: keep editable
+                    $(this).prop('readonly', false).removeClass('cp-synced-field').css({
+                        'background-color': '',
+                        'cursor': '',
+                        'color': ''
+                    });
+                }
+            });
+        });
+    }
+
+    // Live input synchronization from template 0 to subsequent templates
+    $(document).on('input change', '.cp-template-block[data-index="0"] .cp-dynamic-variable', function () {
+        var tag = $(this).data('tag');
+        var val = $(this).val();
+        if (!tag) return;
+
+        $('.cp-template-block').each(function () {
+            var tIndex = parseInt($(this).data('index'), 10);
+            if (tIndex === 0) return;
+
+            $(this).find('.cp-dynamic-variable[data-tag="' + tag + '"]').each(function () {
+                $(this).val(val);
+            });
+        });
+    });
+
+    // Run initial synchronization on page load
+    syncTemplateVariables();
+
     function generatePreview(index) {
         var $block = $('.cp-template-block[data-index="' + index + '"]');
         if (!$block.length) return;
@@ -163,6 +228,9 @@ jQuery(document).ready(function ($) {
         var $activeFields = $block.find('.cp-model-fields-' + tIndex + '-' + mIdx);
         $activeFields.show();
         $activeFields.find(':input').prop('disabled', false).attr('required', 'required');
+
+        // Re-sync variables when model selection changes
+        syncTemplateVariables();
 
         // Update preview automatically if we are on the form page and the PDF has already been generated once
         var $container = $('#cp-preview-container-' + tIndex);
