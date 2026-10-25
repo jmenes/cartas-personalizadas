@@ -108,9 +108,21 @@ class CP_Orders {
 			return;
 		}
 
+		// Ensure we only process product line items (ignore shipping, fees, etc.)
+		if ( ! is_a( $item, 'WC_Order_Item_Product' ) ) {
+			return;
+		}
+
+		$personalizations = $item->get_meta( '_cp_personalizations' );
+		$is_letter = ( $product && is_a( $product, 'WC_Product' ) ) ? $product->get_meta( '_cp_is_letter' ) : '';
+
+		// If this product is not a custom letter, do not output anything
+		if ( empty( $personalizations ) && empty( $item->get_meta( '_cp_name' ) ) && 'yes' !== $is_letter ) {
+			return;
+		}
+
 		$order_id = $item->get_order_id();
 		$pdf_urls = $item->get_meta( '_cp_pdf_urls' );
-		$personalizations = $item->get_meta( '_cp_personalizations' );
 
 		// 1. Botones de descarga de PDF si existen
 		if ( ! empty( $pdf_urls ) && is_array( $pdf_urls ) ) {
