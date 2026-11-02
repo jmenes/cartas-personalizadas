@@ -42,22 +42,15 @@ jQuery(document).ready(function ($) {
                 if (!tag) return;
 
                 if (primaryValues.hasOwnProperty(tag)) {
-                    // Shared marker: keep synced and readonly
-                    if (primaryValues[tag] !== undefined) {
-                        $(this).val(primaryValues[tag]);
-                    }
-                    $(this).prop('readonly', true).addClass('cp-synced-field').css({
-                        'background-color': '#f3f4f6',
-                        'cursor': 'not-allowed',
-                        'color': '#555'
-                    });
+                    // Shared marker: keep synced and hidden
+                    var currentVal = primaryValues[tag] !== undefined ? primaryValues[tag] : '';
+                    $(this).val(currentVal);
+                    $(this).addClass('cp-synced-field');
+                    $(this).closest('.form-row').hide();
                 } else {
-                    // Unique marker to this template: keep editable
-                    $(this).prop('readonly', false).removeClass('cp-synced-field').css({
-                        'background-color': '',
-                        'cursor': '',
-                        'color': ''
-                    });
+                    // Unique marker to this template: keep editable and visible
+                    $(this).removeClass('cp-synced-field');
+                    $(this).closest('.form-row').show();
                 }
             });
         });

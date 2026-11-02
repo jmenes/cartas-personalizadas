@@ -45,6 +45,11 @@
     margin-bottom: 20px;
 }
 
+/* Campos sincronizados/heredados entre plantillas (se ocultan para no duplicar campos) */
+.cp-personalization-form .form-row.cp-synced-row {
+    display: none !important;
+}
+
 /* Botón de Previsualización */
 .cp-preview-btn {
     display: inline-block;

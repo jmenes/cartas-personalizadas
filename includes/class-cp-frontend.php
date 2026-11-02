@@ -236,18 +236,19 @@ class CP_Frontend {
 						$is_synced = ( $t_index > 0 && isset( $first_template_tags[ $tag ] ) );
 						$readonly_attr = $is_synced ? ' readonly="readonly"' : '';
 						$synced_class = $is_synced ? ' cp-synced-field' : '';
-						$synced_style = $is_synced ? ' background-color: #f3f4f6; cursor: not-allowed; color: #555;' : '';
+						$row_synced_class = $is_synced ? ' cp-synced-row' : '';
+						$row_style = $is_synced ? 'width: 100%; display: none;' : 'width: 100%;';
 
-						echo '<p class="form-row form-row-wide" style="width: 100%;">';
+						echo '<p class="form-row form-row-wide' . $row_synced_class . '" style="' . $row_style . '">';
 						echo '<label for="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" style="display: block; margin-bottom: 5px;">' . esc_html( $label ) . ' <span class="required">*</span></label>';
 						if ( ! empty( $desc ) ) {
 							echo '<span style="display: block; color: #666; font-size: 0.9em; margin-bottom: 5px;">' . esc_html( $desc ) . '</span>';
 						}
 						
 						if ( $v_type === 'textarea' ) {
-							echo '<textarea class="input-text cp-dynamic-field cp-dynamic-variable' . $synced_class . '" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" rows="2" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px; resize: none;' . $synced_style . '" required ' . $max_attr . ' ' . $disabled_attr . $readonly_attr . '></textarea>';
+							echo '<textarea class="input-text cp-dynamic-field cp-dynamic-variable' . $synced_class . '" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" rows="2" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px; resize: none;" required ' . $max_attr . ' ' . $disabled_attr . $readonly_attr . '></textarea>';
 						} else {
-							echo '<input type="text" class="input-text cp-dynamic-field cp-dynamic-variable' . $synced_class . '" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px;' . $synced_style . '" required ' . $max_attr . ' ' . $disabled_attr . $readonly_attr . '>';
+							echo '<input type="text" class="input-text cp-dynamic-field cp-dynamic-variable' . $synced_class . '" data-tag="' . esc_attr( $tag ) . '" name="cp_data[' . $t_index . '][models][' . $m_idx . '][variables][' . esc_attr( $tag ) . ']" id="cp_var_' . $t_index . '_' . $m_idx . '_' . $v_index . '" style="width: 100%; box-sizing: border-box; font-size: 1.1em; padding: 8px;" required ' . $max_attr . ' ' . $disabled_attr . $readonly_attr . '>';
 						}
 						echo '</p>';
 					}
