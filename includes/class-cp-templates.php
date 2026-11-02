@@ -133,12 +133,25 @@ class CP_Templates {
 			</select>
 		</div>
 
+		$secure_file = self::get_template_image_path( $post->ID );
+		$has_secure = ( ! empty( $secure_file ) && file_exists( $secure_file ) );
+		?>
 		<div class="cp-row">
-			<label><?php _e( 'Imagen de Fondo', 'cartas-personalizadas' ); ?></label>
-			<input type="text" name="cp_background_image" id="cp_background_image" value="<?php echo esc_attr( $background_image ); ?>" class="regular-text" />
+			<label><?php _e( 'Imagen de fondo', 'cartas-personalizadas' ); ?></label>
+			<input type="text" name="cp_background_image" id="cp_background_image" value="<?php echo esc_attr( $background_image ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Ninguna imagen seleccionada', 'cartas-personalizadas' ); ?>" />
 			<button type="button" class="button cp_upload_btn" data-target="#cp_background_image"><?php _e( 'Subir Imagen', 'cartas-personalizadas' ); ?></button>
 			<div class="cp-sub-row">
-				<span class="description"><?php _e( 'Imagen de fondo a tamaño completo (A4: 210 x 297 mm).', 'cartas-personalizadas' ); ?></span>
+				<?php if ( $has_secure ) : ?>
+					<span style="color: #008a20; font-weight: 500;">
+						<span class="dashicons dashicons-shield" style="font-size: 16px; vertical-align: text-bottom;"></span>
+						<?php _e( 'Protegida: La imagen maestra está guardada de forma privada en el servidor y eliminada de la carpeta pública.', 'cartas-personalizadas' ); ?>
+					</span>
+					<div style="margin-top: 8px;">
+						<img src="<?php echo esc_url( add_query_arg( array( 'cp_action' => 'template_thumb', 'template_id' => $post->ID, 'v' => time() ), home_url( '/' ) ) ); ?>" style="max-height: 90px; border: 1px solid #ccd0d4; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: inline-block;" />
+					</div>
+				<?php else : ?>
+					<span class="description"><?php _e( 'Imagen de fondo a tamaño completo. Al guardar la plantilla se moverá automáticamente a la carpeta privada protegida eliminándose de la pública.', 'cartas-personalizadas' ); ?></span>
+				<?php endif; ?>
 			</div>
 		</div>
 
@@ -495,12 +508,19 @@ class CP_Templates {
 
 			@copy( $local_file, $target_file );
 
-			if ( file_exists( $target_file ) ) {
+			if ( file_exists( $target_file ) && filesize( $target_file ) > 0 ) {
 				update_post_meta( $template_id, '_cp_background_image_secure', $target_file );
+				update_post_meta( $template_id, '_cp_background_image', basename( $target_file ) );
+
+				// PURGE the original public copy and its variations from the public uploads folder
 				$att_id = attachment_url_to_postid( $image_input );
 				if ( $att_id ) {
-					update_post_meta( $att_id, '_cp_secured_template', '1' );
+					// Delete from WordPress media library and disk completely (removes all public thumbnails too)
+					wp_delete_attachment( $att_id, true );
+				} elseif ( file_exists( $local_file ) && $local_file !== $target_file ) {
+					@unlink( $local_file );
 				}
+
 				self::generate_watermarked_thumbnail( $template_id, true );
 				return $target_file;
 			}
