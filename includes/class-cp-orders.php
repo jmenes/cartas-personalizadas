@@ -31,7 +31,9 @@ class CP_Orders {
 		add_filter( 'woocommerce_order_actions', array( $this, 'add_order_actions' ) );
 		add_action( 'woocommerce_order_action_cp_regenerate_order_pdfs', array( $this, 'process_order_action_regeneration' ) );
 
-		// Secure PDF download endpoint with access control
+		// Secure PDF download endpoints with access control
+		add_action( 'admin_post_cp_download_pdf', array( $this, 'handle_secure_pdf_download' ) );
+		add_action( 'admin_post_nopriv_cp_download_pdf', array( $this, 'handle_secure_pdf_download' ) );
 		add_action( 'init', array( $this, 'handle_secure_pdf_download' ) );
 	}
 
@@ -453,24 +455,31 @@ class CP_Orders {
 	 */
 	public function get_download_url( $order_id, $item_id, $doc_idx, $order_key = '' ) {
 		$args = array(
-			'cp_action' => 'download_pdf',
-			'order_id'  => intval( $order_id ),
-			'item_id'   => intval( $item_id ),
-			'doc_idx'   => intval( $doc_idx ),
+			'action'   => 'cp_download_pdf',
+			'order_id' => intval( $order_id ),
+			'item_id'  => intval( $item_id ),
+			'doc_idx'  => intval( $doc_idx ),
 		);
 
 		if ( ! empty( $order_key ) ) {
 			$args['order_key'] = sanitize_text_field( $order_key );
 		}
 
-		return add_query_arg( $args, home_url( '/' ) );
+		if ( is_admin() || current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) || current_user_can( 'administrator' ) ) {
+			$args['_wpnonce'] = wp_create_nonce( 'cp_download_' . $order_id . '_' . $doc_idx );
+		}
+
+		return add_query_arg( $args, admin_url( 'admin-post.php' ) );
 	}
 
 	/**
 	 * Secure PDF download handler with authentication and permission checks
 	 */
 	public function handle_secure_pdf_download() {
-		if ( ! isset( $_GET['cp_action'] ) || 'download_pdf' !== $_GET['cp_action'] ) {
+		$is_cp_action = ( isset( $_GET['action'] ) && 'cp_download_pdf' === $_GET['action'] )
+			|| ( isset( $_GET['cp_action'] ) && 'download_pdf' === $_GET['cp_action'] );
+
+		if ( ! $is_cp_action ) {
 			return;
 		}
 
@@ -478,8 +487,8 @@ class CP_Orders {
 		$item_id  = isset( $_GET['item_id'] ) ? intval( $_GET['item_id'] ) : 0;
 		$doc_idx  = isset( $_GET['doc_idx'] ) ? intval( $_GET['doc_idx'] ) : 0;
 
-		if ( ! $order_id || ! $item_id ) {
-			wp_die( esc_html__( 'Parámetros de descarga no válidos.', 'cartas-personalizadas' ), esc_html__( 'Error de acceso', 'cartas-personalizadas' ), array( 'response' => 400 ) );
+		if ( ! $order_id ) {
+			wp_die( esc_html__( 'Pedido no especificado.', 'cartas-personalizadas' ), esc_html__( 'Error de acceso', 'cartas-personalizadas' ), array( 'response' => 400 ) );
 		}
 
 		$order = wc_get_order( $order_id );
@@ -487,15 +496,32 @@ class CP_Orders {
 			wp_die( esc_html__( 'Pedido no encontrado.', 'cartas-personalizadas' ), esc_html__( 'Error de acceso', 'cartas-personalizadas' ), array( 'response' => 404 ) );
 		}
 
-		$item = $order->get_item( $item_id );
+		$item = null;
+		if ( $item_id ) {
+			$item = $order->get_item( $item_id );
+		}
+
+		// Fallback: If item was not found by ID, locate the letter item in the order
 		if ( ! $item || ! is_a( $item, 'WC_Order_Item_Product' ) ) {
+			foreach ( $order->get_items() as $order_item ) {
+				if ( is_a( $order_item, 'WC_Order_Item_Product' ) ) {
+					$product = $order_item->get_product();
+					if ( ( $product && 'yes' === $product->get_meta( '_cp_is_letter' ) ) || $order_item->get_meta( '_cp_pdf_urls' ) || $order_item->get_meta( '_cp_pdf_url' ) ) {
+						$item = $order_item;
+						break;
+					}
+				}
+			}
+		}
+
+		if ( ! $item ) {
 			wp_die( esc_html__( 'Elemento del pedido no encontrado.', 'cartas-personalizadas' ), esc_html__( 'Error de acceso', 'cartas-personalizadas' ), array( 'response' => 404 ) );
 		}
 
 		$pdf_paths = $item->get_meta( '_cp_pdf_paths' );
 		$pdf_urls  = $item->get_meta( '_cp_pdf_urls' );
 
-		// Fallback for legacy orders if _cp_pdf_paths is missing
+		// Fallback for legacy orders if _cp_pdf_paths is missing or empty
 		if ( empty( $pdf_paths ) || ! is_array( $pdf_paths ) ) {
 			$upload_dir = wp_upload_dir();
 			if ( ! empty( $pdf_urls ) && is_array( $pdf_urls ) ) {
@@ -511,26 +537,60 @@ class CP_Orders {
 		}
 
 		if ( empty( $pdf_paths ) || ! isset( $pdf_paths[ $doc_idx ] ) ) {
-			wp_die( esc_html__( 'El archivo PDF solicitado no está disponible.', 'cartas-personalizadas' ), esc_html__( 'Archivo no encontrado', 'cartas-personalizadas' ), array( 'response' => 404 ) );
+			if ( ! empty( $pdf_paths ) && isset( $pdf_paths[0] ) ) {
+				$doc_idx = 0;
+			} else {
+				wp_die( esc_html__( 'El archivo PDF solicitado no está disponible.', 'cartas-personalizadas' ), esc_html__( 'Archivo no encontrado', 'cartas-personalizadas' ), array( 'response' => 404 ) );
+			}
 		}
 
 		$file_path = $pdf_paths[ $doc_idx ];
 
-		// Verify security against path traversal
-		$upload_dir = wp_upload_dir();
-		$cp_dir     = realpath( $upload_dir['basedir'] . '/cp_orders' );
-		$real_file  = realpath( $file_path );
+		// If file path does not exist on disk, attempt resolving from url
+		if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
+			$upload_dir = wp_upload_dir();
+			if ( ! empty( $pdf_urls[ $doc_idx ]['url'] ) ) {
+				$alt_path = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $pdf_urls[ $doc_idx ]['url'] );
+				if ( file_exists( $alt_path ) ) {
+					$file_path = $alt_path;
+				}
+			}
+		}
 
-		if ( ! $real_file || ! file_exists( $real_file ) || ( $cp_dir && false === strpos( $real_file, $cp_dir ) ) ) {
-			wp_die( esc_html__( 'El archivo no existe o la ruta no es válida.', 'cartas-personalizadas' ), esc_html__( 'Error de acceso', 'cartas-personalizadas' ), array( 'response' => 404 ) );
+		if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
+			wp_die( esc_html__( 'El archivo PDF no existe en el servidor.', 'cartas-personalizadas' ), esc_html__( 'Archivo no encontrado', 'cartas-personalizadas' ), array( 'response' => 404 ) );
+		}
+
+		$real_file = realpath( $file_path );
+		if ( ! $real_file || ! file_exists( $real_file ) || 'pdf' !== strtolower( pathinfo( $real_file, PATHINFO_EXTENSION ) ) ) {
+			wp_die( esc_html__( 'Archivo no válido.', 'cartas-personalizadas' ), esc_html__( 'Error de acceso', 'cartas-personalizadas' ), array( 'response' => 403 ) );
 		}
 
 		// Security Authorization:
-		$is_admin = current_user_can( 'manage_woocommerce' );
+		$is_admin = false;
+		if ( is_user_logged_in() ) {
+			if ( current_user_can( 'manage_woocommerce' ) 
+				|| current_user_can( 'manage_options' ) 
+				|| current_user_can( 'edit_shop_orders' ) 
+				|| current_user_can( 'edit_others_shop_orders' ) 
+				|| current_user_can( 'administrator' ) 
+				|| is_super_admin() ) {
+				$is_admin = true;
+			}
+		}
+
+		// Also check valid admin nonce
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+		if ( ! $is_admin && ! empty( $nonce ) ) {
+			if ( is_user_logged_in() && wp_verify_nonce( $nonce, 'cp_download_' . $order_id . '_' . $doc_idx ) ) {
+				$is_admin = true;
+			}
+		}
+
 		$doc_meta = isset( $pdf_urls[ $doc_idx ] ) ? $pdf_urls[ $doc_idx ] : array();
 		$is_physical = ( isset( $doc_meta['format'] ) && 'physical' === $doc_meta['format'] );
 
-		// Check if product delivery format is physical (fallback)
+		// Check product format if doc_meta doesn't specify
 		if ( ! $is_physical && ( $product = $item->get_product() ) ) {
 			if ( 'physical' === $product->get_meta( '_cp_delivery_format' ) ) {
 				$is_physical = true;
@@ -538,11 +598,11 @@ class CP_Orders {
 		}
 
 		if ( $is_admin ) {
-			// Administrator can download all files
+			// Administrator is authorized to download any document
 		} else {
 			// Non-admin can NEVER download physical letters
 			if ( $is_physical ) {
-				wp_die( esc_html__( 'No tienes permisos para descargar este archivo de impresión.', 'cartas-personalizadas' ), esc_html__( 'Acceso denegado', 'cartas-personalizadas' ), array( 'response' => 403 ) );
+				wp_die( esc_html__( 'No tienes permisos.', 'cartas-personalizadas' ), esc_html__( 'Acceso denegado', 'cartas-personalizadas' ), array( 'response' => 403 ) );
 			}
 
 			// For digital letters, verify customer ownership
@@ -591,7 +651,12 @@ class CP_Orders {
 			}
 		}
 
-		// Serve PDF safely inline
+		// Disable compression that can corrupt binary output
+		if ( function_exists( 'apache_setenv' ) ) {
+			@apache_setenv( 'no-gzip', '1' );
+		}
+		@ini_set( 'zlib.output_compression', 'Off' );
+
 		header( 'Content-Type: application/pdf' );
 		header( 'Content-Disposition: inline; filename="' . esc_attr( $filename ) . '"' );
 		header( 'Content-Transfer-Encoding: binary' );

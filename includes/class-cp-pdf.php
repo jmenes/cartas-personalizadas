@@ -128,39 +128,23 @@ class CP_PDF {
 			$log_msg .= "Background Image URL: " . $background_image . "\n";
 			$log_msg .= "Include Background: " . ( $include_background ? 'YES' : 'NO' ) . "\n";
 
-			if ( $background_image && $include_background ) {
-				$local_bg = '';
+			if ( $include_background ) {
+				$local_bg = CP_Templates::get_template_image_path( $template_id );
 				
-				// Try to resolve the local system path if it is a local image under wp-content
-				$wp_content_pos = strpos( $background_image, '/wp-content/' );
-				if ( $wp_content_pos !== false ) {
-					$relative_path = substr( $background_image, $wp_content_pos );
-					if ( defined( 'WP_CONTENT_DIR' ) ) {
-						$local_bg = WP_CONTENT_DIR . substr( $relative_path, 11 ); // remove '/wp-content' (11 chars)
-					} else {
-						$local_bg = ABSPATH . ltrim( $relative_path, '/' );
-					}
-				}
-				
-				$log_msg .= "Resolved local_bg (wp-content check): " . $local_bg . " (Exists: " . (file_exists($local_bg) ? 'YES' : 'NO') . ")\n";
+				$log_msg .= "Resolved local_bg: " . $local_bg . " (Exists: " . ( file_exists( $local_bg ) ? 'YES' : 'NO' ) . ")\n";
 
-				if ( empty( $local_bg ) || ! file_exists( $local_bg ) ) {
-					$local_bg = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $background_image );
-					$log_msg .= "Resolved local_bg (fallback str_replace): " . $local_bg . " (Exists: " . (file_exists($local_bg) ? 'YES' : 'NO') . ")\n";
-				}
-				
-				$t0 = microtime(true);
+				$t0 = microtime( true );
 				if ( ! empty( $local_bg ) && file_exists( $local_bg ) ) {
 					$pdf->Image( $local_bg, 0, 0, $dim_w, $dim_h );
-					$log_msg .= "Loaded from LOCAL path.\n";
-				} elseif ( ini_get('allow_url_fopen') ) {
+					$log_msg .= "Loaded from LOCAL secure path.\n";
+				} elseif ( ! empty( $background_image ) && ini_get( 'allow_url_fopen' ) ) {
 					$pdf->Image( $background_image, 0, 0, $dim_w, $dim_h );
 					$log_msg .= "Loaded from REMOTE URL via allow_url_fopen.\n";
 				} else {
-					$log_msg .= "Failed to load background image (not found locally and allow_url_fopen disabled).\n";
+					$log_msg .= "Failed to load background image.\n";
 				}
-				$t1 = microtime(true);
-				$log_msg .= "Image render time: " . ($t1 - $t0) . " seconds\n";
+				$t1 = microtime( true );
+				$log_msg .= "Image render time: " . ( $t1 - $t0 ) . " seconds\n";
 			} else {
 				$log_msg .= "No background image to load.\n";
 			}

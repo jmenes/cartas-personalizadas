@@ -8,9 +8,12 @@ class CP_Templates {
 
 	public function __construct() {
 		add_action( 'init', array( $this, 'register_cpt' ) );
+		add_action( 'init', array( $this, 'handle_template_thumb' ) );
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes' ) );
 		add_action( 'save_post', array( $this, 'save_meta_boxes' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
+		add_action( 'wp_head', array( $this, 'prevent_attachment_indexing' ) );
+		add_filter( 'wp_robots', array( $this, 'filter_robots_for_templates' ) );
 	}
 
 	public function register_cpt() {
@@ -386,6 +389,10 @@ class CP_Templates {
 			}
 		}
 
+		if ( isset( $_POST['cp_background_image'] ) && ! empty( $_POST['cp_background_image'] ) ) {
+			self::secure_template_image( $post_id, sanitize_text_field( $_POST['cp_background_image'] ) );
+		}
+
 		// Save Models JSON properly
 		if ( isset( $_POST['cp_models'] ) ) {
 			$models_json = stripslashes( $_POST['cp_models'] );
@@ -412,5 +419,288 @@ class CP_Templates {
 
 		wp_enqueue_media();
 		wp_enqueue_script( 'cp-admin-script', CP_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ), filemtime( CP_PLUGIN_PATH . 'assets/js/admin.js' ), true );
+	}
+
+	/**
+	 * Get and ensure secure template directories exist with protective .htaccess
+	 */
+	public static function get_secure_dir() {
+		$upload_dir = wp_upload_dir();
+		$base_dir = $upload_dir['basedir'] . '/cp_templates';
+		$cache_dir = $base_dir . '/cache';
+
+		if ( ! file_exists( $base_dir ) ) {
+			wp_mkdir_p( $base_dir );
+		}
+		if ( ! file_exists( $cache_dir ) ) {
+			wp_mkdir_p( $cache_dir );
+		}
+
+		// Deny all direct web access to master templates
+		$htaccess_file = $base_dir . '/.htaccess';
+		$rules = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\nOptions -Indexes\n";
+		if ( ! file_exists( $htaccess_file ) || @file_get_contents( $htaccess_file ) !== $rules ) {
+			@file_put_contents( $htaccess_file, $rules );
+		}
+
+		$index_file = $base_dir . '/index.html';
+		if ( ! file_exists( $index_file ) ) {
+			@file_put_contents( $index_file, '' );
+		}
+
+		return array(
+			'path'  => $base_dir,
+			'cache' => $cache_dir,
+			'url'   => $upload_dir['baseurl'] . '/cp_templates',
+		);
+	}
+
+	/**
+	 * Secure a template master image: copies it into cp_templates and generates watermarked thumbnail
+	 */
+	public static function secure_template_image( $template_id, $image_input = '' ) {
+		$dirs = self::get_secure_dir();
+		$template_id = intval( $template_id );
+
+		if ( empty( $image_input ) ) {
+			$image_input = get_post_meta( $template_id, '_cp_background_image', true );
+		}
+		if ( empty( $image_input ) ) {
+			return '';
+		}
+
+		// Resolve local path
+		$upload_dir = wp_upload_dir();
+		$local_file = '';
+		$wp_content_pos = strpos( $image_input, '/wp-content/' );
+		if ( $wp_content_pos !== false ) {
+			$rel = substr( $image_input, $wp_content_pos );
+			$local_file = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . substr( $rel, 11 ) : ABSPATH . ltrim( $rel, '/' );
+		}
+
+		if ( empty( $local_file ) || ! file_exists( $local_file ) ) {
+			$local_file = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $image_input );
+		}
+
+		if ( ! empty( $local_file ) && file_exists( $local_file ) ) {
+			// If already in cp_templates, just ensure thumbnail is generated
+			if ( 0 === strpos( $local_file, $dirs['path'] ) ) {
+				self::generate_watermarked_thumbnail( $template_id, true );
+				return $local_file;
+			}
+
+			$ext = strtolower( pathinfo( $local_file, PATHINFO_EXTENSION ) );
+			$base = pathinfo( $local_file, PATHINFO_FILENAME );
+			$target_file = $dirs['path'] . '/template-' . $template_id . '-' . sanitize_title( $base ) . '.' . $ext;
+
+			@copy( $local_file, $target_file );
+
+			if ( file_exists( $target_file ) ) {
+				update_post_meta( $template_id, '_cp_background_image_secure', $target_file );
+				$att_id = attachment_url_to_postid( $image_input );
+				if ( $att_id ) {
+					update_post_meta( $att_id, '_cp_secured_template', '1' );
+				}
+				self::generate_watermarked_thumbnail( $template_id, true );
+				return $target_file;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Get the local filesystem path of the master template image (auto-migrating if needed)
+	 */
+	public static function get_template_image_path( $template_id ) {
+		$template_id = intval( $template_id );
+		$dirs = self::get_secure_dir();
+
+		// 1. Check if secure path is stored in meta and exists
+		$secure_meta = get_post_meta( $template_id, '_cp_background_image_secure', true );
+		if ( ! empty( $secure_meta ) && file_exists( $secure_meta ) ) {
+			return $secure_meta;
+		}
+
+		// 2. Check if a secure file already exists in cp_templates
+		$existing_secure = glob( $dirs['path'] . '/template-' . $template_id . '-*.*' );
+		if ( ! empty( $existing_secure ) && file_exists( $existing_secure[0] ) ) {
+			update_post_meta( $template_id, '_cp_background_image_secure', $existing_secure[0] );
+			return $existing_secure[0];
+		}
+
+		// 3. Auto-migrate existing template image without user intervention
+		$secured = self::secure_template_image( $template_id );
+		if ( ! empty( $secured ) && file_exists( $secured ) ) {
+			return $secured;
+		}
+
+		// Fallback to legacy path resolution
+		$bg_image = get_post_meta( $template_id, '_cp_background_image', true );
+		if ( empty( $bg_image ) ) {
+			return '';
+		}
+
+		$upload_dir = wp_upload_dir();
+		$local_file = '';
+		$wp_content_pos = strpos( $bg_image, '/wp-content/' );
+		if ( $wp_content_pos !== false ) {
+			$rel = substr( $bg_image, $wp_content_pos );
+			$local_file = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . substr( $rel, 11 ) : ABSPATH . ltrim( $rel, '/' );
+		}
+		if ( empty( $local_file ) || ! file_exists( $local_file ) ) {
+			$local_file = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $bg_image );
+		}
+
+		return file_exists( $local_file ) ? $local_file : '';
+	}
+
+	/**
+	 * Generate and cache a watermarked preview thumbnail for web display
+	 */
+	public static function generate_watermarked_thumbnail( $template_id, $force = false ) {
+		$dirs = self::get_secure_dir();
+		$cache_file = $dirs['cache'] . '/thumb-' . intval( $template_id ) . '.jpg';
+
+		if ( ! $force && file_exists( $cache_file ) && filesize( $cache_file ) > 0 ) {
+			return $cache_file;
+		}
+
+		$master_file = self::get_template_image_path( $template_id );
+		if ( ! $master_file || ! file_exists( $master_file ) ) {
+			return false;
+		}
+
+		$info = @getimagesize( $master_file );
+		if ( ! $info ) {
+			return false;
+		}
+
+		$mime = $info['mime'];
+		$img = null;
+
+		switch ( $mime ) {
+			case 'image/jpeg':
+				$img = @imagecreatefromjpeg( $master_file );
+				break;
+			case 'image/png':
+				$img = @imagecreatefrompng( $master_file );
+				break;
+			case 'image/webp':
+				if ( function_exists( 'imagecreatefromwebp' ) ) {
+					$img = @imagecreatefromwebp( $master_file );
+				}
+				break;
+		}
+
+		if ( ! $img ) {
+			return false;
+		}
+
+		$orig_w = imagesx( $img );
+		$orig_h = imagesy( $img );
+
+		// Resize to preview width (max 900px wide for optimal web performance)
+		$max_w = 900;
+		if ( $orig_w > $max_w ) {
+			$new_w = $max_w;
+			$new_h = intval( $orig_h * ( $max_w / $orig_w ) );
+			$resized = imagecreatetruecolor( $new_w, $new_h );
+			imagecopyresampled( $resized, $img, 0, 0, 0, 0, $new_w, $new_h, $orig_w, $orig_h );
+			$img = $resized;
+		}
+
+		$w = imagesx( $img );
+		$h = imagesy( $img );
+
+		// Create diagonal watermark stamp
+		$stamp_w = 180;
+		$stamp_h = 50;
+		$stamp = imagecreatetruecolor( $stamp_w, $stamp_h );
+		imagealphablending( $stamp, false );
+		imagesavealpha( $stamp, true );
+		$trans = imagecolorallocatealpha( $stamp, 0, 0, 0, 127 );
+		imagefill( $stamp, 0, 0, $trans );
+		$watermark_color = imagecolorallocatealpha( $stamp, 130, 130, 130, 45 ); // semi-transparent grey
+		imagestring( $stamp, 5, 25, 18, 'M U E S T R A', $watermark_color );
+
+		$rotated_stamp = imagerotate( $stamp, 35, $trans );
+		imagesavealpha( $rotated_stamp, true );
+		$rot_w = imagesx( $rotated_stamp );
+		$rot_h = imagesy( $rotated_stamp );
+
+		// Tile watermark across image
+		imagealphablending( $img, true );
+		for ( $y = -50; $y < $h + 100; $y += 160 ) {
+			for ( $x = -50; $x < $w + 100; $x += 200 ) {
+				imagecopy( $img, $rotated_stamp, $x, $y, 0, 0, $rot_w, $rot_h );
+			}
+		}
+
+		// Save cached watermarked jpeg
+		imagejpeg( $img, $cache_file, 85 );
+
+		return $cache_file;
+	}
+
+	/**
+	 * Serve the watermarked preview thumbnail securely with noindex headers
+	 */
+	public function handle_template_thumb() {
+		if ( ! isset( $_GET['cp_action'] ) || 'template_thumb' !== $_GET['cp_action'] ) {
+			return;
+		}
+
+		$template_id = isset( $_GET['template_id'] ) ? intval( $_GET['template_id'] ) : 0;
+		if ( ! $template_id ) {
+			status_header( 404 );
+			exit;
+		}
+
+		$thumb_file = self::generate_watermarked_thumbnail( $template_id );
+		if ( ! $thumb_file || ! file_exists( $thumb_file ) ) {
+			status_header( 404 );
+			exit;
+		}
+
+		while ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		header( 'Content-Type: image/jpeg' );
+		header( 'Content-Length: ' . filesize( $thumb_file ) );
+		header( 'X-Robots-Tag: noindex, nofollow, noarchive' );
+		header( 'Cache-Control: public, max-age=604800, stale-while-revalidate=86400' );
+		header( 'Pragma: public' );
+
+		readfile( $thumb_file );
+		exit;
+	}
+
+	/**
+	 * Prevent search engines from indexing template attachment pages
+	 */
+	public function prevent_attachment_indexing() {
+		if ( is_attachment() ) {
+			global $post;
+			if ( $post && get_post_meta( $post->ID, '_cp_secured_template', true ) ) {
+				echo '<meta name="robots" content="noindex, nofollow, noarchive" />' . "\n";
+			}
+		}
+	}
+
+	/**
+	 * Filter wp_robots for template attachments
+	 */
+	public function filter_robots_for_templates( $robots ) {
+		if ( is_attachment() ) {
+			global $post;
+			if ( $post && get_post_meta( $post->ID, '_cp_secured_template', true ) ) {
+				$robots['noindex'] = true;
+				$robots['nofollow'] = true;
+				$robots['noarchive'] = true;
+			}
+		}
+		return $robots;
 	}
 }

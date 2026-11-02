@@ -326,16 +326,15 @@ class CP_Frontend {
 			}
 			$aspect_ratio_style = "aspect-ratio: {$w_ratio} / {$h_ratio};";
 
-			// Get WordPress 'large' size of background image if available for web optimization
-			$preview_bg_url = $background_image;
-			if ( $background_image ) {
-				$attachment_id = attachment_url_to_postid( $background_image );
-				if ( $attachment_id ) {
-					$image_attributes = wp_get_attachment_image_src( $attachment_id, 'large' );
-					if ( $image_attributes && isset( $image_attributes[0] ) ) {
-						$preview_bg_url = $image_attributes[0];
-					}
-				}
+			// Use secure watermarked preview thumbnail endpoint (prevents leaking master clean image)
+			$has_bg = CP_Templates::get_template_image_path( $template_id );
+			$preview_bg_url = '';
+			if ( ! empty( $has_bg ) ) {
+				$preview_bg_url = add_query_arg( array(
+					'cp_action'   => 'template_thumb',
+					'template_id' => $template_id,
+					'v'           => filemtime( $has_bg ),
+				), home_url( '/' ) );
 			}
 
 			echo '<div class="cp-preview-container" id="cp-preview-container-' . $t_index . '" data-index="' . $t_index . '" style="' . esc_attr( $aspect_ratio_style ) . '">';
