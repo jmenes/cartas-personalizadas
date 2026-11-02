@@ -431,8 +431,11 @@ class CP_Templates {
 		}
 
 		wp_enqueue_media();
-		wp_enqueue_script( 'cp-admin-script', CP_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ), filemtime( CP_PLUGIN_PATH . 'assets/js/admin.js' ), true );
+		$version = defined( 'CP_VERSION' ) ? CP_VERSION : '1.2.0';
+		wp_enqueue_script( 'cp-admin-script', CP_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ), $version, true );
 	}
+
+	private static $dirs_checked = false;
 
 	/**
 	 * Get and ensure secure template directories exist with protective .htaccess
@@ -442,23 +445,27 @@ class CP_Templates {
 		$base_dir = $upload_dir['basedir'] . '/cp_templates';
 		$cache_dir = $base_dir . '/cache';
 
-		if ( ! file_exists( $base_dir ) ) {
-			wp_mkdir_p( $base_dir );
-		}
-		if ( ! file_exists( $cache_dir ) ) {
-			wp_mkdir_p( $cache_dir );
-		}
+		if ( ! self::$dirs_checked ) {
+			if ( ! file_exists( $base_dir ) ) {
+				wp_mkdir_p( $base_dir );
+			}
+			if ( ! file_exists( $cache_dir ) ) {
+				wp_mkdir_p( $cache_dir );
+			}
 
-		// Deny all direct web access to master templates
-		$htaccess_file = $base_dir . '/.htaccess';
-		$rules = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\nOptions -Indexes\n";
-		if ( ! file_exists( $htaccess_file ) || @file_get_contents( $htaccess_file ) !== $rules ) {
-			@file_put_contents( $htaccess_file, $rules );
-		}
+			// Deny all direct web access to master templates
+			$htaccess_file = $base_dir . '/.htaccess';
+			$rules = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\nOptions -Indexes\n";
+			if ( ! file_exists( $htaccess_file ) || @file_get_contents( $htaccess_file ) !== $rules ) {
+				@file_put_contents( $htaccess_file, $rules );
+			}
 
-		$index_file = $base_dir . '/index.html';
-		if ( ! file_exists( $index_file ) ) {
-			@file_put_contents( $index_file, '' );
+			$index_file = $base_dir . '/index.html';
+			if ( ! file_exists( $index_file ) ) {
+				@file_put_contents( $index_file, '' );
+			}
+
+			self::$dirs_checked = true;
 		}
 
 		return array(
@@ -496,9 +503,10 @@ class CP_Templates {
 		}
 
 		if ( ! empty( $local_file ) && file_exists( $local_file ) ) {
-			// If already in cp_templates, just ensure thumbnail is generated
+			// If already in cp_templates, just ensure thumbnails and preview background are generated
 			if ( 0 === strpos( $local_file, $dirs['path'] ) ) {
 				self::generate_watermarked_thumbnail( $template_id, true );
+				self::get_preview_background_path( $template_id, true );
 				return $local_file;
 			}
 
@@ -522,6 +530,7 @@ class CP_Templates {
 				}
 
 				self::generate_watermarked_thumbnail( $template_id, true );
+				self::get_preview_background_path( $template_id, true );
 				return $target_file;
 			}
 		}
@@ -660,11 +669,92 @@ class CP_Templates {
 		// Save cached watermarked jpeg
 		imagejpeg( $img, $cache_file, 85 );
 
+		// Free GD image memory on PHP < 8.5
+		if ( PHP_VERSION_ID < 80500 ) {
+			@imagedestroy( $stamp );
+			@imagedestroy( $rotated_stamp );
+			@imagedestroy( $img );
+		}
+
 		return $cache_file;
 	}
 
 	/**
-	 * Serve the watermarked preview thumbnail securely with noindex headers
+	 * Get or generate a clean, web-optimized preview background image for screen PDFs
+	 * (resized to max 1200px width, ~80-120 KB, without watermark so FPDF applies vector watermark)
+	 */
+	public static function get_preview_background_path( $template_id, $force = false ) {
+		$template_id = intval( $template_id );
+		$dirs = self::get_secure_dir();
+		$preview_file = $dirs['cache'] . '/preview-' . $template_id . '.jpg';
+
+		if ( ! $force && file_exists( $preview_file ) && filesize( $preview_file ) > 0 ) {
+			return $preview_file;
+		}
+
+		$master_file = self::get_template_image_path( $template_id );
+		if ( ! $master_file || ! file_exists( $master_file ) ) {
+			return '';
+		}
+
+		$info = @getimagesize( $master_file );
+		if ( ! $info ) {
+			return $master_file; // fallback to master
+		}
+
+		$mime = $info['mime'];
+		$img = null;
+
+		switch ( $mime ) {
+			case 'image/jpeg':
+				$img = @imagecreatefromjpeg( $master_file );
+				break;
+			case 'image/png':
+				$img = @imagecreatefrompng( $master_file );
+				break;
+			case 'image/webp':
+				if ( function_exists( 'imagecreatefromwebp' ) ) {
+					$img = @imagecreatefromwebp( $master_file );
+				}
+				break;
+		}
+
+		if ( ! $img ) {
+			return $master_file; // fallback to master if GD cannot load
+		}
+
+		$orig_w = imagesx( $img );
+		$orig_h = imagesy( $img );
+
+		// Max 1200px width for crystal-clear retina screen display in PDF (~10x lighter than master)
+		$max_w = 1200;
+		if ( $orig_w > $max_w ) {
+			$new_w = $max_w;
+			$new_h = intval( $orig_h * ( $max_w / $orig_w ) );
+			$resized = imagecreatetruecolor( $new_w, $new_h );
+			
+			// Fill white background in case source had alpha transparency
+			$white = imagecolorallocate( $resized, 255, 255, 255 );
+			imagefilledrectangle( $resized, 0, 0, $new_w, $new_h, $white );
+			
+			imagecopyresampled( $resized, $img, 0, 0, 0, 0, $new_w, $new_h, $orig_w, $orig_h );
+			if ( PHP_VERSION_ID < 80500 ) {
+				@imagedestroy( $img );
+			}
+			$img = $resized;
+		}
+
+		// Save clean web-optimized jpeg for screen preview PDF
+		imagejpeg( $img, $preview_file, 82 );
+		if ( PHP_VERSION_ID < 80500 ) {
+			@imagedestroy( $img );
+		}
+
+		return file_exists( $preview_file ) ? $preview_file : $master_file;
+	}
+
+	/**
+	 * Serve the watermarked preview thumbnail securely with HTTP 304 caching and noindex headers
 	 */
 	public function handle_template_thumb() {
 		if ( ! isset( $_GET['cp_action'] ) || 'template_thumb' !== $_GET['cp_action'] ) {
@@ -683,12 +773,29 @@ class CP_Templates {
 			exit;
 		}
 
+		$last_modified_time = filemtime( $thumb_file );
+		$etag = '"' . md5( $template_id . '-' . $last_modified_time . '-' . filesize( $thumb_file ) ) . '"';
+
+		// HTTP 304 Not Modified validation (saves bandwidth and prevents unnecessary image re-downloads)
+		$if_none_match = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? trim( stripslashes( $_SERVER['HTTP_IF_NONE_MATCH'] ) ) : false;
+		$if_modified_since = isset( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ? strtotime( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) : false;
+
+		if ( ( $if_none_match && $if_none_match === $etag ) || ( $if_modified_since && $if_modified_since >= $last_modified_time ) ) {
+			status_header( 304 );
+			header( 'ETag: ' . $etag );
+			header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $last_modified_time ) . ' GMT' );
+			header( 'Cache-Control: public, max-age=604800, stale-while-revalidate=86400' );
+			exit;
+		}
+
 		while ( ob_get_level() ) {
 			ob_end_clean();
 		}
 
 		header( 'Content-Type: image/jpeg' );
 		header( 'Content-Length: ' . filesize( $thumb_file ) );
+		header( 'ETag: ' . $etag );
+		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $last_modified_time ) . ' GMT' );
 		header( 'X-Robots-Tag: noindex, nofollow, noarchive' );
 		header( 'Cache-Control: public, max-age=604800, stale-while-revalidate=86400' );
 		header( 'Pragma: public' );

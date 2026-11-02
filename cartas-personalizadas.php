@@ -3,7 +3,7 @@
  * Plugin Name:       Cartas Personalizadas
  * Plugin URI:        https://menes.studio
  * Description:       Plugin para vender cartas personalizadas con WooCommerce.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Author:            menes.studio
  * Author URI:        https://menes.studio
  * Text Domain:       cartas-personalizadas
@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+define( 'CP_VERSION', '1.2.0' );
 define( 'CP_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 

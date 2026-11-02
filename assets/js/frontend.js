@@ -75,6 +75,11 @@ jQuery(document).ready(function ($) {
     // Run initial synchronization on page load
     syncTemplateVariables();
 
+    // Client-side in-memory cache for generated previews to make switching models/tabs instant (0ms)
+    var cpPreviewCache = {};
+    var cpActiveXhr = null;
+    var cpActiveRenderTasks = {};
+
     function generatePreview(index) {
         var $block = $('.cp-template-block[data-index="' + index + '"]');
         if (!$block.length) return;
@@ -122,7 +127,6 @@ jQuery(document).ready(function ($) {
 
         var $btn = $block.find('.cp-preview-btn');
         var originalText = $btn.text();
-        $btn.text('Generando...').prop('disabled', true);
 
         // Try to find the template-specific container, else fallback to the central container
         var $container = $('#cp-preview-container-' + index);
@@ -136,11 +140,25 @@ jQuery(document).ready(function ($) {
 
         var $overlayBtn = $container.find('.cp-preview-overlay-btn');
         var originalOverlayText = $overlayBtn.length ? $overlayBtn.text() : '';
+
+        // Check client cache first: instant response without network roundtrip
+        var cacheKey = templateId + '_' + modelId + '_' + JSON.stringify(blocksArray) + '_' + JSON.stringify(variablesData);
+        if (cpPreviewCache[cacheKey]) {
+            renderPDF(cpPreviewCache[cacheKey], $container, index);
+            return;
+        }
+
+        // Abort any existing in-flight preview request to save bandwidth and server CPU
+        if (cpActiveXhr && cpActiveXhr.readyState !== 4) {
+            cpActiveXhr.abort();
+        }
+
+        $btn.text('Generando...').prop('disabled', true);
         if ($overlayBtn.length) {
             $overlayBtn.text('Cargando...').prop('disabled', true);
         }
 
-        $.ajax({
+        cpActiveXhr = $.ajax({
             url: cp_ajax.url,
             type: 'POST',
             data: {
@@ -159,7 +177,8 @@ jQuery(document).ready(function ($) {
                 }
                 if (response.success) {
                     if (response.data.type === 'pdf') {
-                        // Render PDF using PDF.js
+                        // Store in cache for instant reuse
+                        cpPreviewCache[cacheKey] = response.data.preview_url;
                         renderPDF(response.data.preview_url, $container, index);
                     } else {
                         // Fallback for image
@@ -170,12 +189,18 @@ jQuery(document).ready(function ($) {
                     $container.html('<div style="color: #ef4444; padding: 20px; font-weight: 500;">Error: ' + response.data.message + '</div>').addClass('cp-preview-active');
                 }
             },
-            error: function () {
+            error: function (xhr, status) {
+                if (status === 'abort') {
+                    return; // Ignore aborted requests cleanly
+                }
                 $btn.text(originalText).prop('disabled', false);
                 if ($overlayBtn.length) {
                     $overlayBtn.text(originalOverlayText).prop('disabled', false);
                 }
                 $container.html('<div style="color: #ef4444; padding: 20px; font-weight: 500;">Error de conexión.</div>').addClass('cp-preview-active');
+            },
+            complete: function () {
+                cpActiveXhr = null;
             }
         });
     }
@@ -183,7 +208,7 @@ jQuery(document).ready(function ($) {
     // Trigger on button click or clicking the placeholder container
     $(document).on('click', '.cp-preview-btn, .cp-preview-container', function (e) {
         // Prevent event bubbling if clicking elements inside container (like the active canvas)
-        if ($(e.target).closest('canvas').length) {
+        if ($(e.target).closest('canvas, .cp-zoom-controls').length) {
             return;
         }
 
@@ -232,69 +257,97 @@ jQuery(document).ready(function ($) {
         }
     });
 
-    // We no longer trigger generatePreview automatically on page load to save resources
-    // and make the initial page load instant. The static background is displayed instead.
-
+    // Render PDF using PDF.js with on-demand loading and active render task cancellation
     function renderPDF(url, $container, index) {
-        // Ensure pdfjsLib is available
+        function doRender() {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = cp_ajax.pdfWorkerUrl;
+
+            // Cancel any in-progress render task on this canvas before starting a new one
+            if (cpActiveRenderTasks[index]) {
+                try {
+                    cpActiveRenderTasks[index].cancel();
+                } catch (e) {}
+                cpActiveRenderTasks[index] = null;
+            }
+
+            var loadingTask = pdfjsLib.getDocument(url);
+            loadingTask.promise.then(function (pdf) {
+                // Fetch the first page
+                pdf.getPage(1).then(function (page) {
+                    var scale = 1.5;
+                    var viewport = page.getViewport({ scale: scale });
+
+                    // Prepare canvas using PDF page dimensions
+                    var canvasId = 'cp-pdf-canvas-' + index;
+                    var canvas = document.createElement('canvas');
+                    canvas.id = canvasId;
+
+                    // Remove any old canvas/controls/wrapper first
+                    $container.find('.cp-preview-scroll-wrapper, .cp-zoom-controls').remove();
+                    
+                    // Create scroll wrapper
+                    var $scrollWrapper = $('<div class="cp-preview-scroll-wrapper"></div>');
+                    
+                    // Append the canvas inside the wrapper
+                    $scrollWrapper.append(canvas);
+                    $container.append($scrollWrapper);
+
+                    // Add zoom controls directly to container so they remain floating
+                    var zoomHtml = '<div class="cp-zoom-controls">' +
+                        '<button type="button" class="cp-zoom-btn cp-zoom-out" data-index="' + index + '" title="Alejar">−</button>' +
+                        '<button type="button" class="cp-zoom-btn cp-zoom-reset" data-index="' + index + '" title="Restablecer">↺</button>' +
+                        '<button type="button" class="cp-zoom-btn cp-zoom-in" data-index="' + index + '" title="Acercar">+</button>' +
+                        '</div>';
+                    $container.append(zoomHtml);
+
+                    var context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    // Render PDF page into canvas context
+                    var renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+                    var renderTask = page.render(renderContext);
+                    cpActiveRenderTasks[index] = renderTask;
+
+                    renderTask.promise.then(function () {
+                        cpActiveRenderTasks[index] = null;
+                        // Add the active class to trigger smooth CSS transition
+                        $container.addClass('cp-preview-active');
+                    }, function (error) {
+                        if (error && error.name === 'RenderingCancelledException') {
+                            // Ignored: cancelled deliberately for a newer render
+                            return;
+                        }
+                        console.error('PDF render error:', error);
+                    });
+                });
+            }, function (reason) {
+                // PDF loading error
+                console.error(reason);
+                $container.html('Error loading PDF preview.');
+            });
+        }
+
+        // Lazy load PDF.js library on-demand if not already loaded in window
         if (typeof pdfjsLib === 'undefined') {
-            $container.html('Error: PDF library not loaded.');
+            if (cp_ajax.pdfLibUrl) {
+                $.getScript(cp_ajax.pdfLibUrl)
+                    .done(function () {
+                        doRender();
+                    })
+                    .fail(function () {
+                        $container.html('Error: No se pudo cargar el visor PDF.');
+                    });
+            } else {
+                $container.html('Error: PDF library not configured.');
+            }
             return;
         }
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc = cp_ajax.pdfWorkerUrl;
-
-        var loadingTask = pdfjsLib.getDocument(url);
-        loadingTask.promise.then(function (pdf) {
-            // Fetch the first page
-            pdf.getPage(1).then(function (page) {
-                var scale = 1.5;
-                var viewport = page.getViewport({ scale: scale });
-
-                // Prepare canvas using PDF page dimensions
-                var canvasId = 'cp-pdf-canvas-' + index;
-                var canvas = document.createElement('canvas');
-                canvas.id = canvasId;
-
-                // Remove any old canvas/controls/wrapper first
-                $container.find('.cp-preview-scroll-wrapper, .cp-zoom-controls').remove();
-                
-                // Create scroll wrapper
-                var $scrollWrapper = $('<div class="cp-preview-scroll-wrapper"></div>');
-                
-                // Append the canvas inside the wrapper
-                $scrollWrapper.append(canvas);
-                $container.append($scrollWrapper);
-
-                // Add zoom controls directly to container so they remain floating
-                var zoomHtml = '<div class="cp-zoom-controls">' +
-                    '<button type="button" class="cp-zoom-btn cp-zoom-out" data-index="' + index + '" title="Alejar">−</button>' +
-                    '<button type="button" class="cp-zoom-btn cp-zoom-reset" data-index="' + index + '" title="Restablecer">↺</button>' +
-                    '<button type="button" class="cp-zoom-btn cp-zoom-in" data-index="' + index + '" title="Acercar">+</button>' +
-                    '</div>';
-                $container.append(zoomHtml);
-
-                var context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                // Render PDF page into canvas context
-                var renderContext = {
-                    canvasContext: context,
-                    viewport: viewport
-                };
-                var renderTask = page.render(renderContext);
-                renderTask.promise.then(function () {
-                    console.log('Page rendered');
-                    // Add the active class to trigger smooth CSS transition
-                    $container.addClass('cp-preview-active');
-                });
-            });
-        }, function (reason) {
-            // PDF loading error
-            console.error(reason);
-            $container.html('Error loading PDF preview.');
-        });
+        doRender();
     }
 
     // Zoom control state

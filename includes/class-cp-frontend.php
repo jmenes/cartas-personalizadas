@@ -53,22 +53,38 @@ class CP_Frontend {
 		
 		$should_enqueue = false;
 		if ( is_product() ) {
-			$should_enqueue = true;
+			$product_id = get_the_ID();
+			if ( ! $product_id && is_a( $post, 'WP_Post' ) ) {
+				$product_id = $post->ID;
+			}
+			if ( $product_id && 'yes' === get_post_meta( $product_id, '_cp_is_letter', true ) ) {
+				$should_enqueue = true;
+			}
 		} elseif ( is_a( $post, 'WP_Post' ) && ( has_shortcode( $post->post_content, 'cp_form' ) || has_shortcode( $post->post_content, 'cp_preview' ) ) ) {
 			$should_enqueue = true;
 		}
 
 		if ( $should_enqueue ) {
+			$version = defined( 'CP_VERSION' ) ? CP_VERSION : '1.2.0';
+
+			// Enqueue PDF.js viewer only (worker runs asynchronously in background via pdfWorkerUrl)
 			wp_enqueue_script( 'pdfjs', CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.min.js', array(), '3.11.174', true );
-			wp_enqueue_script( 'pdfjs-worker', CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.worker.min.js', array(), '3.11.174', true );
+			if ( function_exists( 'wp_script_add_data' ) ) {
+				wp_script_add_data( 'pdfjs', 'strategy', 'defer' );
+			}
 			
-			wp_enqueue_script( 'cp-frontend', CP_PLUGIN_URL . 'assets/js/frontend.js', array( 'jquery', 'pdfjs' ), filemtime( CP_PLUGIN_PATH . 'assets/js/frontend.js' ), true );
+			wp_enqueue_script( 'cp-frontend', CP_PLUGIN_URL . 'assets/js/frontend.js', array( 'jquery', 'pdfjs' ), $version, true );
+			if ( function_exists( 'wp_script_add_data' ) ) {
+				wp_script_add_data( 'cp-frontend', 'strategy', 'defer' );
+			}
+
 			wp_localize_script( 'cp-frontend', 'cp_ajax', array(
-				'url' => admin_url( 'admin-ajax.php' ),
-				'nonce' => wp_create_nonce( 'cp_preview_nonce' ),
-				'pdfWorkerUrl' => CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.worker.min.js'
+				'url'          => admin_url( 'admin-ajax.php' ),
+				'nonce'        => wp_create_nonce( 'cp_preview_nonce' ),
+				'pdfWorkerUrl' => CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.worker.min.js',
+				'pdfLibUrl'    => CP_PLUGIN_URL . 'assets/js/pdfjs/pdf.min.js'
 			) );
-			wp_enqueue_style( 'cp-frontend', CP_PLUGIN_URL . 'assets/css/frontend.css', array(), filemtime( CP_PLUGIN_PATH . 'assets/css/frontend.css' ) );
+			wp_enqueue_style( 'cp-frontend', CP_PLUGIN_URL . 'assets/css/frontend.css', array(), $version );
 		}
 	}
 
@@ -465,8 +481,6 @@ class CP_Frontend {
 	}
 
 	public function ajax_generate_preview() {
-		$t_start = microtime(true);
-
 		if ( session_id() ) {
 			session_write_close();
 		}
@@ -503,32 +517,18 @@ class CP_Frontend {
 		}
 
 		// Use CP_PDF for preview (will be rendered via PDF.js)
-		error_log( 'CP_Frontend: Generating preview for product ' . $product_id . ' with template ' . $template_id );
-		
 		try {
-			$t_pdf_start = microtime(true);
 			$pdf = new CP_PDF();
 			$preview_url = $pdf->generate_preview( array( 
-				'blocks' => $sanitized_blocks,
-				'variables' => $sanitized_variables,
+				'blocks'      => $sanitized_blocks,
+				'variables'   => $sanitized_variables,
 				'template_id' => $template_id,
-				'model_id' => $model_id
+				'model_id'    => $model_id
 			) );
-			$t_pdf_end = microtime(true);
-
-			$log_file = CP_PLUGIN_PATH . 'debug_perf.log';
-			$preview_length = strlen( $preview_url );
-			$t_total = microtime(true) - $t_start;
-
-			$log_msg = "--- AJAX Generate Preview Debug (" . date('Y-m-d H:i:s') . ") ---\n";
-			$log_msg .= "PDF Gen+Base64 time: " . ($t_pdf_end - $t_pdf_start) . " seconds\n";
-			$log_msg .= "Total AJAX processing time: " . $t_total . " seconds\n";
-			$log_msg .= "Base64 payload length: " . $preview_length . " characters (" . round($preview_length / 1024 / 1024, 2) . " MB)\n";
-			@file_put_contents( $log_file, $log_msg, FILE_APPEND );
-
-			error_log( 'CP_Frontend: Preview generated successfully' );
 		} catch ( Exception $e ) {
-			error_log( 'CP_Frontend: Error generating preview: ' . $e->getMessage() );
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'CP_Frontend: Error generating preview: ' . $e->getMessage() );
+			}
 			wp_send_json_error( array( 'message' => 'Error: ' . $e->getMessage() ) );
 			return;
 		}
@@ -541,13 +541,19 @@ class CP_Frontend {
 	}
 
 	public function is_cart_or_checkout_context() {
+		static $is_context = null;
+		if ( null !== $is_context ) {
+			return $is_context;
+		}
+
 		if ( is_cart() || is_checkout() ) {
+			$is_context = true;
 			return true;
 		}
 
 		// Check WooCommerce AJAX requests for cart/checkout (such as mini-cart/checkout updates)
 		if ( wp_doing_ajax() ) {
-			$action = isset( $_REQUEST['action'] ) ? $_REQUEST['action'] : '';
+			$action  = isset( $_REQUEST['action'] ) ? $_REQUEST['action'] : '';
 			$wc_ajax = isset( $_REQUEST['wc-ajax'] ) ? $_REQUEST['wc-ajax'] : '';
 			
 			$cart_checkout_actions = array(
@@ -558,6 +564,7 @@ class CP_Frontend {
 			);
 
 			if ( in_array( $wc_ajax, $cart_checkout_actions, true ) || in_array( $action, $cart_checkout_actions, true ) ) {
+				$is_context = true;
 				return true;
 			}
 		}
@@ -565,10 +572,12 @@ class CP_Frontend {
 		// WooCommerce Store API REST requests (Blocks Cart/Checkout)
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
 			if ( isset( $_SERVER['REQUEST_URI'] ) && strpos( $_SERVER['REQUEST_URI'], '/wc/store' ) !== false ) {
+				$is_context = true;
 				return true;
 			}
 		}
 
+		$is_context = false;
 		return false;
 	}
 

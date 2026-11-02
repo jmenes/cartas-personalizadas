@@ -8,35 +8,39 @@ require_once CP_PLUGIN_PATH . 'lib/fpdf.php';
 
 class CP_PDF {
 
+	private static $orders_dir_checked = false;
+
 	public function __construct() {
-		// Ensure upload directory exists
-		$upload_dir = wp_upload_dir();
-		$cp_dir = $upload_dir['basedir'] . '/cp_orders';
-		if ( ! file_exists( $cp_dir ) ) {
-			wp_mkdir_p( $cp_dir );
-		}
+		if ( ! self::$orders_dir_checked ) {
+			// Ensure upload directory exists
+			$upload_dir = wp_upload_dir();
+			$cp_dir = $upload_dir['basedir'] . '/cp_orders';
+			if ( ! file_exists( $cp_dir ) ) {
+				wp_mkdir_p( $cp_dir );
+			}
 
-		// Deny direct web access to PDF directory (protect from direct URL access and directory browsing)
-		$htaccess_file = $cp_dir . '/.htaccess';
-		$rules = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\nOptions -Indexes\n";
-		if ( ! file_exists( $htaccess_file ) || @file_get_contents( $htaccess_file ) !== $rules ) {
-			@file_put_contents( $htaccess_file, $rules );
-		}
+			// Deny direct web access to PDF directory (protect from direct URL access and directory browsing)
+			$htaccess_file = $cp_dir . '/.htaccess';
+			$rules = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\nOptions -Indexes\n";
+			if ( ! file_exists( $htaccess_file ) || @file_get_contents( $htaccess_file ) !== $rules ) {
+				@file_put_contents( $htaccess_file, $rules );
+			}
 
-		// Add empty index.html for extra folder protection
-		$index_file = $cp_dir . '/index.html';
-		if ( ! file_exists( $index_file ) ) {
-			@file_put_contents( $index_file, '' );
+			// Add empty index.html for extra folder protection
+			$index_file = $cp_dir . '/index.html';
+			if ( ! file_exists( $index_file ) ) {
+				@file_put_contents( $index_file, '' );
+			}
+
+			self::$orders_dir_checked = true;
 		}
 	}
 
 	public function generate_preview( $data ) {
-		error_log( 'CP_PDF: generate_preview called' );
 		$pdf = $this->create_pdf( $data, true );
 		
 		// Output as Base64 for preview
 		$content = $pdf->Output( 'S' );
-		error_log( 'CP_PDF: PDF output generated' );
 		return 'data:application/pdf;base64,' . base64_encode( $content );
 	}
 
@@ -122,33 +126,21 @@ class CP_PDF {
 				$include_background = ( $is_preview || $delivery_format === 'digital' );
 			}
 
-			$log_file = CP_PLUGIN_PATH . 'debug_perf.log';
-			$log_msg = "--- PDF Generation Debug (" . date('Y-m-d H:i:s') . ") ---\n";
-			$log_msg .= "Template ID: " . $template_id . "\n";
-			$log_msg .= "Background Image URL: " . $background_image . "\n";
-			$log_msg .= "Include Background: " . ( $include_background ? 'YES' : 'NO' ) . "\n";
-
 			if ( $include_background ) {
-				$local_bg = CP_Templates::get_template_image_path( $template_id );
-				
-				$log_msg .= "Resolved local_bg: " . $local_bg . " (Exists: " . ( file_exists( $local_bg ) ? 'YES' : 'NO' ) . ")\n";
+				if ( $is_preview ) {
+					// Use web-optimized background for preview PDF (drastically reduces generation time, memory & payload)
+					$local_bg = CP_Templates::get_preview_background_path( $template_id );
+				} else {
+					// Use original master image at full resolution for high-quality final/print orders
+					$local_bg = CP_Templates::get_template_image_path( $template_id );
+				}
 
-				$t0 = microtime( true );
 				if ( ! empty( $local_bg ) && file_exists( $local_bg ) ) {
 					$pdf->Image( $local_bg, 0, 0, $dim_w, $dim_h );
-					$log_msg .= "Loaded from LOCAL secure path.\n";
 				} elseif ( ! empty( $background_image ) && ini_get( 'allow_url_fopen' ) ) {
 					$pdf->Image( $background_image, 0, 0, $dim_w, $dim_h );
-					$log_msg .= "Loaded from REMOTE URL via allow_url_fopen.\n";
-				} else {
-					$log_msg .= "Failed to load background image.\n";
 				}
-				$t1 = microtime( true );
-				$log_msg .= "Image render time: " . ( $t1 - $t0 ) . " seconds\n";
-			} else {
-				$log_msg .= "No background image to load.\n";
 			}
-			@file_put_contents( $log_file, $log_msg, FILE_APPEND );
 
 			// Models Configuration
 			$models_data = get_post_meta( $template_id, '_cp_models', true );
