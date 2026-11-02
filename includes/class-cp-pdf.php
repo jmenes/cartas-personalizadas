@@ -16,10 +16,10 @@ class CP_PDF {
 			wp_mkdir_p( $cp_dir );
 		}
 
-		// Deny directory listing (protect file names from being listed/browsed)
+		// Deny direct web access to PDF directory (protect from direct URL access and directory browsing)
 		$htaccess_file = $cp_dir . '/.htaccess';
-		if ( ! file_exists( $htaccess_file ) ) {
-			$rules = "Options -Indexes\n";
+		$rules = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\nOptions -Indexes\n";
+		if ( ! file_exists( $htaccess_file ) || @file_get_contents( $htaccess_file ) !== $rules ) {
 			@file_put_contents( $htaccess_file, $rules );
 		}
 
@@ -40,11 +40,17 @@ class CP_PDF {
 		return 'data:application/pdf;base64,' . base64_encode( $content );
 	}
 
-	public function generate_final( $order_id, $item_data, $index = 0 ) {
+	public function generate_final( $order_id, $item_data, $index = 0, $type_suffix = '' ) {
 		$pdf = $this->create_pdf( $item_data, false );
 		
 		$upload_dir = wp_upload_dir();
-		$suffix = $index > 0 ? '-' . $index : '';
+		$suffix = '';
+		if ( $index > 0 ) {
+			$suffix .= '-' . $index;
+		}
+		if ( ! empty( $type_suffix ) ) {
+			$suffix .= '-' . sanitize_key( $type_suffix );
+		}
 		$filename = 'letter-' . $order_id . '-' . uniqid() . $suffix . '.pdf';
 		$path = $upload_dir['basedir'] . '/cp_orders/' . $filename;
 		$url = $upload_dir['baseurl'] . '/cp_orders/' . $filename;
@@ -105,16 +111,24 @@ class CP_PDF {
 		if ( $template_id ) {
 			$upload_dir = wp_upload_dir();
 
-			// Background Image: Only loaded for preview or for digital delivery
+			// Background Image: Only loaded for preview or for digital delivery, or if explicitly requested
 			$delivery_format = isset( $data['delivery_format'] ) ? $data['delivery_format'] : 'physical';
 			$background_image = get_post_meta( $template_id, '_cp_background_image', true );
 			
+			$include_background = false;
+			if ( isset( $data['include_background'] ) ) {
+				$include_background = (bool) $data['include_background'];
+			} else {
+				$include_background = ( $is_preview || $delivery_format === 'digital' );
+			}
+
 			$log_file = CP_PLUGIN_PATH . 'debug_perf.log';
 			$log_msg = "--- PDF Generation Debug (" . date('Y-m-d H:i:s') . ") ---\n";
 			$log_msg .= "Template ID: " . $template_id . "\n";
 			$log_msg .= "Background Image URL: " . $background_image . "\n";
+			$log_msg .= "Include Background: " . ( $include_background ? 'YES' : 'NO' ) . "\n";
 
-			if ( $background_image && ( $is_preview || $delivery_format === 'digital' ) ) {
+			if ( $background_image && $include_background ) {
 				$local_bg = '';
 				
 				// Try to resolve the local system path if it is a local image under wp-content

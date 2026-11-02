@@ -25,7 +25,7 @@ class CP_Admin {
 		// Checkbox: Es Carta Personalizada
 		woocommerce_wp_checkbox( array(
 			'id'            => '_cp_is_letter',
-			'label'         => __( 'Es Carta Personalizada', 'cartas-personalizadas' ),
+			'label'         => __( 'Es carta personalizada', 'cartas-personalizadas' ),
 			'description'   => __( 'Marcar si este producto es una carta personalizada que requiere formulario.', 'cartas-personalizadas' ),
 		) );
 
@@ -34,10 +34,10 @@ class CP_Admin {
 			'id'            => '_cp_delivery_format',
 			'label'         => __( 'Formato de Entrega', 'cartas-personalizadas' ),
 			'options'       => array(
-				'physical' => __( 'Físico (Impresión - PDF sin imagen de fondo)', 'cartas-personalizadas' ),
-				'digital'  => __( 'Digital (Descarga - PDF con imagen de fondo completa)', 'cartas-personalizadas' ),
+				'physical' => __( 'Físico (Impresión - Genera PDF solo texto y PDF completo con fondo)', 'cartas-personalizadas' ),
+				'digital'  => __( 'Digital (Descarga del cliente - PDF completo con fondo)', 'cartas-personalizadas' ),
 			),
-			'description'   => __( 'Si seleccionas Digital, recuerda marcar la casilla "Virtual" en los ajustes superiores de WooCommerce para desactivar el envío.', 'cartas-personalizadas' ),
+			'description'   => __( 'En formato Físico se generan ambos PDFs para el administrador (el cliente no tiene acceso de descarga). Si seleccionas Digital, recuerda marcar la casilla "Virtual" en los ajustes de WooCommerce.', 'cartas-personalizadas' ),
 			'desc_tip'      => true,
 		) );
 
